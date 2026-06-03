@@ -1,0 +1,201 @@
+- generic [active] [ref=e1]:
+  - region "Notifications alt+T"
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: F
+        - generic [ref=e6]: Filio
+      - navigation [ref=e7]:
+        - paragraph [ref=e8]: Main
+        - link "nav.dashboard" [ref=e9] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e10]
+          - generic [ref=e15]: nav.dashboard
+        - link "nav.clients" [ref=e16] [cursor=pointer]:
+          - /url: /dashboard/clients
+          - img [ref=e17]
+          - generic [ref=e22]: nav.clients
+        - link "nav.activity" [ref=e23] [cursor=pointer]:
+          - /url: /dashboard/clients/activity
+          - img [ref=e24]
+          - generic [ref=e25]: nav.activity
+        - link "nav.uploads" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/uploads
+          - img [ref=e27]
+          - generic [ref=e30]: nav.uploads
+        - link "nav.reminders" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/reminders
+          - img [ref=e32]
+          - generic [ref=e35]: nav.reminders
+        - link "nav.help" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e37]
+          - generic [ref=e40]: nav.help
+        - button "Settings" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e46]: Settings
+          - img [ref=e47]
+      - generic [ref=e49]:
+        - button "Xero Connected Synced 2h ago" [ref=e51] [cursor=pointer]:
+          - generic [ref=e53]:
+            - paragraph [ref=e54]: Xero Connected
+            - paragraph [ref=e55]: Synced 2h ago
+          - img [ref=e56]
+        - generic [ref=e61]:
+          - generic [ref=e62]: ...
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: ...
+            - paragraph [ref=e65]: ...
+          - button [ref=e66] [cursor=pointer]:
+            - img [ref=e67]
+    - generic [ref=e70]:
+      - banner [ref=e71]:
+        - generic [ref=e72]:
+          - heading "Clients" [level=1] [ref=e73]
+          - paragraph [ref=e74]: Manage your client documents
+        - generic [ref=e75]:
+          - button "English" [ref=e76] [cursor=pointer]:
+            - img
+            - generic [ref=e77]: English
+          - button "3" [ref=e78] [cursor=pointer]:
+            - img
+            - generic [ref=e79]: "3"
+      - main [ref=e80]:
+        - generic [ref=e81]:
+          - generic [ref=e82]:
+            - link "Back to Clients" [ref=e83] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e84]
+              - text: Back to Clients
+            - generic [ref=e86]:
+              - generic [ref=e87]: LC
+              - generic [ref=e88]:
+                - generic [ref=e89]:
+                  - heading "Luna Cafe" [level=2] [ref=e90]
+                  - generic [ref=e91]: Overdue
+                  - button [ref=e93] [cursor=pointer]:
+                    - img [ref=e94]
+                - paragraph
+              - generic [ref=e96]:
+                - generic [ref=e97]:
+                  - paragraph [ref=e98]: 0/30
+                  - paragraph [ref=e99]: Files uploaded
+                - generic [ref=e101]:
+                  - paragraph [ref=e102]: "0"
+                  - paragraph [ref=e103]: Total uploads
+                - generic [ref=e105]:
+                  - paragraph [ref=e106]: 1d
+                  - paragraph [ref=e107]: Until deadline
+          - generic [ref=e108]:
+            - button "Overview" [ref=e109] [cursor=pointer]:
+              - img [ref=e110]
+              - text: Overview
+            - button "Documents" [ref=e113] [cursor=pointer]:
+              - img [ref=e114]
+              - text: Documents
+            - button "Reminders" [ref=e117] [cursor=pointer]:
+              - img [ref=e118]
+              - text: Reminders
+            - button "Settings" [ref=e121] [cursor=pointer]:
+              - img [ref=e122]
+              - text: Settings
+            - button "Audit Log" [ref=e125] [cursor=pointer]:
+              - img [ref=e126]
+              - text: Audit Log
+          - generic [ref=e128]:
+            - generic [ref=e129]:
+              - generic [ref=e130]:
+                - heading "Deadlines & Progress" [level=3] [ref=e131]
+                - generic [ref=e132]:
+                  - generic [ref=e133]:
+                    - generic [ref=e134]:
+                      - paragraph [ref=e135]: Annual Accounts Deadline
+                      - paragraph [ref=e136]: 2026-04-15
+                    - generic [ref=e137]:
+                      - paragraph [ref=e138]: 1 days
+                      - generic [ref=e139]: Overdue
+                  - generic [ref=e141]:
+                    - generic [ref=e142]:
+                      - paragraph [ref=e143]: Document Checklist
+                      - generic [ref=e144]: 0 of 30 uploaded
+                    - generic [ref=e146]:
+                      - generic [ref=e147]:
+                        - img [ref=e148]
+                        - generic [ref=e151]: Bank Statement
+                      - generic [ref=e152]:
+                        - img [ref=e153]
+                        - generic [ref=e156]: Sales Invoices
+                      - generic [ref=e157]:
+                        - img [ref=e158]
+                        - generic [ref=e161]: Receipts
+                      - generic [ref=e162]:
+                        - img [ref=e163]
+                        - generic [ref=e166]: Purchase Invoices
+                      - generic [ref=e167]:
+                        - img [ref=e168]
+                        - generic [ref=e171]: Payslips
+              - generic [ref=e172]:
+                - generic [ref=e173]:
+                  - heading "Recent Uploads" [level=3] [ref=e174]
+                  - button "View all" [ref=e175] [cursor=pointer]:
+                    - text: View all
+                    - img [ref=e176]
+                - generic [ref=e178]:
+                  - generic [ref=e179]:
+                    - img [ref=e181]
+                    - generic [ref=e184]:
+                      - paragraph [ref=e185]: HarlowSons_Receipt_20260401.jpg
+                      - paragraph [ref=e186]: 2 hours ago · 245 KB
+                    - generic [ref=e187]: Synced
+                  - generic [ref=e188]:
+                    - img [ref=e190]
+                    - generic [ref=e193]:
+                      - paragraph [ref=e194]: HarlowSons_Invoice_20260318.pdf
+                      - paragraph [ref=e195]: 18 Mar 2026 · 1.2 MB
+                    - generic [ref=e196]: Pending
+                  - generic [ref=e197]:
+                    - img [ref=e199]
+                    - generic [ref=e202]:
+                      - paragraph [ref=e203]: BankStatement_Mar.pdf
+                      - paragraph [ref=e204]: 15 Mar 2026 · 890 KB
+                    - generic [ref=e205]: Failed
+            - generic [ref=e206]:
+              - generic [ref=e207]:
+                - heading "Portal Access" [level=3] [ref=e208]
+                - generic [ref=e209]:
+                  - generic [ref=e210]:
+                    - generic [ref=e211]: Status
+                    - generic [ref=e212]: Active
+                  - generic [ref=e213]:
+                    - generic [ref=e214]: VAT Group
+                    - generic [ref=e215]: Group C
+                  - generic [ref=e216]:
+                    - generic [ref=e217]: Last upload
+                    - generic [ref=e218]: Never
+                - generic [ref=e219]:
+                  - img [ref=e220]
+                  - generic [ref=e224]: http://localhost:3000/m/noFpbN
+                  - button [ref=e225] [cursor=pointer]:
+                    - img [ref=e226]
+                - generic [ref=e229]:
+                  - button "Send Magic Link" [ref=e230] [cursor=pointer]:
+                    - img [ref=e231]
+                    - text: Send Magic Link
+                  - button "Regenerate Link" [ref=e234] [cursor=pointer]:
+                    - img [ref=e235]
+                    - text: Regenerate Link
+              - generic [ref=e240]:
+                - heading "Magic Email" [level=3] [ref=e241]
+                - generic [ref=e242]:
+                  - img [ref=e243]
+                  - generic [ref=e246]: Not configured
+                  - button [ref=e247] [cursor=pointer]:
+                    - img [ref=e248]
+                - generic [ref=e251]:
+                  - generic [ref=e252]: Sender verification
+                  - button [ref=e253] [cursor=pointer]:
+                    - img [ref=e254]
+                - button "Regenerate Magic Email" [ref=e257] [cursor=pointer]:
+                  - img [ref=e258]
+                  - text: Regenerate Magic Email
+  - alert [ref=e263]

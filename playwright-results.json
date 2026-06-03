@@ -1,0 +1,134 @@
+{
+  "config": {
+    "configFile": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/playwright.config.ts",
+    "rootDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "mobile-chrome",
+        "name": "mobile-chrome",
+        "testDir": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "playwright-results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 2,
+    "webServer": {
+      "command": "pnpm dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: Cannot find module '../pages/LoginPage'\nRequire stack:\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests/e2e/upload/upload-test.spec.ts\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/transform/transform.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/common/configLoader.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/testActions.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/program.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/cli.js",
+      "stack": "Error: Cannot find module '../pages/LoginPage'\nRequire stack:\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests/e2e/upload/upload-test.spec.ts\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/transform/transform.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/common/configLoader.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/testActions.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/lib/program.js\n- /Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/cli.js\n    at Object.<anonymous> (/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests/e2e/upload/upload-test.spec.ts:2:1)",
+      "location": {
+        "file": "/Users/eric/AI/WebSite/MiniMax Filio/Filio-v2/tests/e2e/upload/upload-test.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "\u001b[90m   at \u001b[39me2e/upload/upload-test.spec.ts:2\n\n  1 | import { test, expect } from '@playwright/test';\n> 2 | import { LoginPage } from '../pages/LoginPage';\n    | ^\n  3 | import { DashboardPage } from '../pages/DashboardPage';\n  4 | import path from 'path';\n  5 |"
+    },
+    {
+      "message": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments.",
+      "stack": "Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\nYou may need to escape symbols like \"$\" or \"*\" and quote the arguments."
+    }
+  ],
+  "stats": {
+    "startTime": "2026-04-21T14:46:11.693Z",
+    "duration": 866.0260000000001,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

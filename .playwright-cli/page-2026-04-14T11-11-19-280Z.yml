@@ -1,0 +1,163 @@
+- generic [ref=e1]:
+  - region "Notifications alt+T"
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: F
+        - generic [ref=e6]: Filio
+      - navigation [ref=e7]:
+        - paragraph [ref=e8]: Main
+        - link "Dashboard" [ref=e253] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e10]
+          - generic [ref=e15]: Dashboard
+        - link "Clients" [ref=e254] [cursor=pointer]:
+          - /url: /dashboard/clients
+          - img [ref=e17]
+          - generic [ref=e22]: Clients
+        - link "Activity" [ref=e255] [cursor=pointer]:
+          - /url: /dashboard/clients/activity
+          - img [ref=e24]
+          - generic [ref=e25]: Activity
+        - link "Upload History" [ref=e256] [cursor=pointer]:
+          - /url: /dashboard/uploads
+          - img [ref=e27]
+          - generic [ref=e30]: Upload History
+        - link "nav.reminders" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/reminders
+          - img [ref=e32]
+          - generic [ref=e35]: nav.reminders
+        - link "Help Center" [ref=e257] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e37]
+          - generic [ref=e40]: Help Center
+        - button "Settings" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e46]: Settings
+          - img [ref=e47]
+      - generic [ref=e49]:
+        - button "Xero Connected Synced 2h ago" [ref=e51] [cursor=pointer]:
+          - generic [ref=e53]:
+            - paragraph [ref=e54]: Xero Connected
+            - paragraph [ref=e55]: Synced 2h ago
+          - img [ref=e56]
+        - generic [ref=e61]:
+          - generic [ref=e62]: A
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: Amilia
+            - paragraph [ref=e65]: AQXI
+          - button [ref=e66] [cursor=pointer]:
+            - img [ref=e67]
+    - generic [ref=e70]:
+      - banner [ref=e71]:
+        - generic [ref=e72]:
+          - heading "Clients" [level=1] [ref=e73]
+          - paragraph [ref=e74]: Manage your client documents
+        - generic [ref=e75]:
+          - button "English" [ref=e76] [cursor=pointer]:
+            - img
+            - generic [ref=e77]: English
+          - button "3" [ref=e78] [cursor=pointer]:
+            - img
+            - generic [ref=e79]: "3"
+      - main [ref=e80]:
+        - generic [ref=e81]:
+          - generic [ref=e82]:
+            - link "Back to Clients" [ref=e83] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e84]
+              - text: Back to Clients
+            - generic [ref=e86]:
+              - generic [ref=e87]: LC
+              - generic [ref=e88]:
+                - generic [ref=e89]:
+                  - heading "Luna Cafe" [level=2] [ref=e90]
+                  - generic [ref=e91]: Overdue
+                  - button [ref=e93] [cursor=pointer]:
+                    - img [ref=e94]
+                - paragraph
+              - generic [ref=e96]:
+                - generic [ref=e97]:
+                  - paragraph [ref=e98]: 0/30
+                  - paragraph [ref=e99]: Files uploaded
+                - generic [ref=e101]:
+                  - paragraph [ref=e102]: "0"
+                  - paragraph [ref=e103]: Total uploads
+                - generic [ref=e105]:
+                  - paragraph [ref=e106]: 1d
+                  - paragraph [ref=e107]: Until deadline
+          - generic [ref=e108]:
+            - button "Overview" [ref=e109] [cursor=pointer]:
+              - img [ref=e110]
+              - text: Overview
+            - button "Documents" [active] [ref=e113] [cursor=pointer]:
+              - img [ref=e114]
+              - text: Documents
+            - button "Reminders" [ref=e117] [cursor=pointer]:
+              - img [ref=e118]
+              - text: Reminders
+            - button "Settings" [ref=e121] [cursor=pointer]:
+              - img [ref=e122]
+              - text: Settings
+            - button "Audit Log" [ref=e125] [cursor=pointer]:
+              - img [ref=e126]
+              - text: Audit Log
+          - generic [ref=e258]:
+            - generic [ref=e259]:
+              - heading "All Documents" [level=3] [ref=e260]
+              - generic [ref=e261]:
+                - button "Export CSV" [ref=e262] [cursor=pointer]:
+                  - img [ref=e263]
+                  - text: Export CSV
+                - button "Manual Upload" [ref=e266] [cursor=pointer]:
+                  - img [ref=e267]
+                  - text: Manual Upload
+            - table [ref=e268]:
+              - rowgroup [ref=e269]:
+                - row "File Type Channel Uploaded Xero Action" [ref=e270]:
+                  - columnheader "File" [ref=e271]
+                  - columnheader "Type" [ref=e272]
+                  - columnheader "Channel" [ref=e273]
+                  - columnheader "Uploaded" [ref=e274]
+                  - columnheader "Xero" [ref=e275]
+                  - columnheader "Action" [ref=e276]
+              - rowgroup [ref=e277]:
+                - row "HarlowSons_Receipt_20260401.jpg receipt.jpg · 245 KB PDF Portal 2 hours ago Synced" [ref=e278]:
+                  - cell "HarlowSons_Receipt_20260401.jpg receipt.jpg · 245 KB" [ref=e279]:
+                    - generic [ref=e280]:
+                      - paragraph [ref=e281]: HarlowSons_Receipt_20260401.jpg
+                      - paragraph [ref=e282]: receipt.jpg · 245 KB
+                  - cell "PDF" [ref=e283]
+                  - cell "Portal" [ref=e284]
+                  - cell "2 hours ago" [ref=e285]
+                  - cell "Synced" [ref=e286]
+                  - cell [ref=e287]:
+                    - button [ref=e288] [cursor=pointer]:
+                      - img [ref=e289]
+                - row "HarlowSons_Invoice_20260318.pdf invoice.pdf · 1.2 MB PDF Manual 18 Mar 2026 Pending" [ref=e293]:
+                  - cell "HarlowSons_Invoice_20260318.pdf invoice.pdf · 1.2 MB" [ref=e294]:
+                    - generic [ref=e295]:
+                      - paragraph [ref=e296]: HarlowSons_Invoice_20260318.pdf
+                      - paragraph [ref=e297]: invoice.pdf · 1.2 MB
+                  - cell "PDF" [ref=e298]
+                  - cell "Manual" [ref=e299]
+                  - cell "18 Mar 2026" [ref=e300]
+                  - cell "Pending" [ref=e301]
+                  - cell [ref=e302]:
+                    - button [ref=e303] [cursor=pointer]:
+                      - img [ref=e304]
+                - row "BankStatement_Mar.pdf bank.pdf · 890 KB PDF Magic Email 15 Mar 2026 Failed" [ref=e308]:
+                  - cell "BankStatement_Mar.pdf bank.pdf · 890 KB" [ref=e309]:
+                    - generic [ref=e310]:
+                      - paragraph [ref=e311]: BankStatement_Mar.pdf
+                      - paragraph [ref=e312]: bank.pdf · 890 KB
+                  - cell "PDF" [ref=e313]
+                  - cell "Magic Email" [ref=e314]
+                  - cell "15 Mar 2026" [ref=e315]
+                  - cell "Failed" [ref=e316]
+                  - cell [ref=e317]:
+                    - button [ref=e318] [cursor=pointer]:
+                      - img [ref=e319]
+  - button "Open Next.js Dev Tools" [ref=e328] [cursor=pointer]:
+    - img [ref=e329]
+  - alert [ref=e332]

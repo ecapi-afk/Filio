@@ -1,0 +1,26 @@
+[    3171ms] [LOG] %cKimi.ai 
+  color: #1772F6;
+  font-weight: bold;
+  font-size: 3em;
+  padding: 10px 0;
+  text-shadow: 0.7px 1px 0 rgb(255 255 255 / 100%),
+    1.4px 2px 0 rgb(255 255 255 / 96%),
+    2.1px 3px 0 rgb(255 255 255 / 92%),
+    2.8px 4px 0 rgb(255 255 255 / 88%),
+    1px 1px 2px rgb(100 100 100 / 70%);
+ @ https://statics.moonshot.cn/kimi-web-seo/assets/index-CtLWSU5z.js:1
+[    3171ms] [LOG] %c林深时见鹿，海深时见鲸，情深时见你🥰
+
+爬虫万里，不如 API 走起🥺
+
+一键接入 Kimi 大模型👇
+
+https://platform.kimi.com 
+  font-size: 1.2em;
+ @ https://statics.moonshot.cn/kimi-web-seo/assets/index-CtLWSU5z.js:1
+[    4656ms] [LOG] %c %s color: yellow; background-color: black; [instance: default] appid: 20001731, userInfo:{"user_unique_id":"7628598577601726731","web_id":"7628598577601726731"} @ https://lf3-data.volccdn.com/obj/data-static/log-sdk/collect/5.0/collect-rangers-v5.1.12.js:0
+[    4656ms] [LOG] %c %s color: yellow; background-color: black; [instance: default] appid: 20001731, sdk is ready, version is 5.1.12_tob, you can report now !!! @ https://lf3-data.volccdn.com/obj/data-static/log-sdk/collect/5.0/collect-rangers-v5.1.12.js:0
+[    5245ms] [ERROR] Failed to load resource: the server responded with a status of 422 () @ https://www.kimi.com/api/device/register:0
+[    5739ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://www.kimi.com/api/user?t=1776171517921:0
+[    5739ms] [ERROR] request error:  /user?t=1776171517921  error message is:  AxiosError$1 @ https://statics.moonshot.cn/kimi-web-seo/assets/common-CDqgzOk6.js:48
+[    7515ms] [INFO] Autofocus processing was blocked because a document already has a focused element. @ https://www.kimi.com/code?track_id=bf4cbd80-1be4-4211-aa60-fee05a848f25:0

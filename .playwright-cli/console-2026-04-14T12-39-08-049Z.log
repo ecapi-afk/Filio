@@ -1,0 +1,17 @@
+[    5261ms] [WARNING] RTC_AMBULANCE have non-native code:
+ RTCPeerConnection.prototype.addStream
+RTCPeerConnection.prototype.addTrack
+RTCPeerConnection.prototype.createDataChannel
+RTCPeerConnection.prototype.getLocalStreams
+RTCPeerConnection.prototype.getStats
+RTCPeerConnection.prototype.removeStream
+RTCPeerConnection.prototype.removeTrack
+RTCPeerConnection.prototype.setRemoteDescription
+RTCPeerConnection.prototype.addEventListener
+RTCPeerConnection.prototype.removeEventListener
+navigator.mediaDevices.getUserMedia @ https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.20/libs/cn/index.js:306
+[    5331ms] [LOG] 13:39:13:380 %cAgora-SDK [DEBUG]: color: #64B5F6; browser ua:  Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 @ https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.20/libs/cn/index.js:307
+[    5331ms] [LOG] 13:39:13:380 %cAgora-SDK [INFO]: color: #1E88E5; font-weight: bold; browser info:  {name: Chrome, version: 147, os: Mac OS, osVersion: 10.15.7, browserVersion: 147.0.0.0} @ https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.20/libs/cn/index.js:307
+[    5332ms] [LOG] 13:39:13:381 %cAgora-SDK [INFO]: color: #1E88E5; font-weight: bold; browser compatibility:  {getDisplayMedia: true, getStreamFromExtension: true, supportUnifiedPlan: true, supportMinBitrate: true, supportSetRtpSenderParameters: true} @ https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.20/libs/cn/index.js:307
+[    6384ms] Object
+[ 1466252ms] [LOG] 14:03:34:300 %cAgora-SDK [DEBUG]: color: #64B5F6; current web page is hidden @ https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.20/libs/cn/index.js:307

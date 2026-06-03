@@ -1,0 +1,291 @@
+- generic [active] [ref=e1]:
+  - region "Notifications alt+T"
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: F
+        - generic [ref=e6]: Filio
+      - navigation [ref=e7]:
+        - paragraph [ref=e8]: Main
+        - link "nav.dashboard" [ref=e9] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e10]
+          - generic [ref=e15]: nav.dashboard
+        - link "nav.clients" [ref=e16] [cursor=pointer]:
+          - /url: /dashboard/clients
+          - img [ref=e17]
+          - generic [ref=e22]: nav.clients
+        - link "nav.activity" [ref=e23] [cursor=pointer]:
+          - /url: /dashboard/clients/activity
+          - img [ref=e24]
+          - generic [ref=e25]: nav.activity
+        - link "nav.uploads" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/uploads
+          - img [ref=e27]
+          - generic [ref=e30]: nav.uploads
+        - link "nav.reminders" [ref=e31] [cursor=pointer]:
+          - /url: /dashboard/reminders
+          - img [ref=e32]
+          - generic [ref=e35]: nav.reminders
+        - link "nav.help" [ref=e36] [cursor=pointer]:
+          - /url: /dashboard/help
+          - img [ref=e37]
+          - generic [ref=e40]: nav.help
+        - button "Settings" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e46]: Settings
+          - img [ref=e47]
+      - generic [ref=e49]:
+        - button "Xero Connected Synced 2h ago" [ref=e51] [cursor=pointer]:
+          - generic [ref=e53]:
+            - paragraph [ref=e54]: Xero Connected
+            - paragraph [ref=e55]: Synced 2h ago
+          - img [ref=e56]
+        - generic [ref=e61]:
+          - generic [ref=e62]: ...
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: ...
+            - paragraph [ref=e65]: ...
+          - button [ref=e66] [cursor=pointer]:
+            - img [ref=e67]
+    - generic [ref=e70]:
+      - banner [ref=e71]:
+        - generic [ref=e72]:
+          - heading "Clients" [level=1] [ref=e73]
+          - paragraph [ref=e74]: Manage your client documents
+        - generic [ref=e75]:
+          - link "Add Client" [ref=e76] [cursor=pointer]:
+            - /url: /dashboard/clients/new
+            - img [ref=e77]
+            - text: Add Client
+          - button "English" [ref=e78] [cursor=pointer]:
+            - img
+            - generic [ref=e79]: English
+          - button "3" [ref=e80] [cursor=pointer]:
+            - img
+            - generic [ref=e81]: "3"
+      - main [ref=e82]:
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - generic [ref=e87]:
+                - img [ref=e88]
+                - textbox "Search by name or email..." [ref=e91]
+              - button "Starred" [ref=e92] [cursor=pointer]:
+                - img [ref=e93]
+                - text: Starred
+              - button "Export" [ref=e95] [cursor=pointer]:
+                - img [ref=e96]
+                - text: Export
+            - generic [ref=e99]:
+              - button "All (8)" [ref=e100] [cursor=pointer]
+              - button "Overdue (2)" [ref=e101] [cursor=pointer]
+              - button "Due Soon" [ref=e102] [cursor=pointer]
+              - button "Not Started" [ref=e103] [cursor=pointer]
+              - button "In Progress" [ref=e104] [cursor=pointer]
+              - button "Complete" [ref=e105] [cursor=pointer]
+              - button "No Action (6)" [ref=e106] [cursor=pointer]
+          - table [ref=e107]:
+            - rowgroup [ref=e108]:
+              - row "Client Status Progress Next Deadline Last Upload Portal Action" [ref=e109]:
+                - columnheader [ref=e110]
+                - columnheader "Client" [ref=e111]
+                - columnheader "Status" [ref=e112]
+                - columnheader "Progress" [ref=e113]
+                - columnheader "Next Deadline" [ref=e114]
+                - columnheader "Last Upload" [ref=e115]
+                - columnheader "Portal" [ref=e116]
+                - columnheader "Action" [ref=e117]
+            - rowgroup [ref=e118]:
+              - row "LC Luna Cafe Overdue 0/30 Annual Accounts 2026-04-15 Never Active Remind" [ref=e119] [cursor=pointer]:
+                - cell [ref=e120]:
+                  - button [ref=e121]:
+                    - img [ref=e122]
+                - cell "LC Luna Cafe" [ref=e124]:
+                  - generic [ref=e125]:
+                    - generic [ref=e126]: LC
+                    - generic [ref=e127]:
+                      - paragraph [ref=e128]: Luna Cafe
+                      - paragraph
+                - cell "Overdue" [ref=e129]:
+                  - generic [ref=e130]: Overdue
+                - cell "0/30" [ref=e132]:
+                  - generic [ref=e135]: 0/30
+                - cell "Annual Accounts 2026-04-15" [ref=e136]:
+                  - paragraph [ref=e137]: Annual Accounts
+                  - paragraph [ref=e138]: 2026-04-15
+                - cell "Never" [ref=e139]
+                - cell "Active" [ref=e140]
+                - cell "Remind" [ref=e141]:
+                  - generic [ref=e142]:
+                    - button "Remind" [ref=e143]:
+                      - img [ref=e144]
+                      - text: Remind
+                    - link [ref=e147]:
+                      - /url: /dashboard/clients/7dafcbe3-37e8-4c64-a684-7c545042764d
+                      - img [ref=e148]
+              - row "EZ Eric Zhang zhanghaog@icloud.com Overdue 0/30 Annual Accounts 2026-04-15 Never Active Remind" [ref=e151] [cursor=pointer]:
+                - cell [ref=e152]:
+                  - button [ref=e153]:
+                    - img [ref=e154]
+                - cell "EZ Eric Zhang zhanghaog@icloud.com" [ref=e156]:
+                  - generic [ref=e157]:
+                    - generic [ref=e158]: EZ
+                    - generic [ref=e159]:
+                      - paragraph [ref=e160]: Eric Zhang
+                      - paragraph [ref=e161]: zhanghaog@icloud.com
+                - cell "Overdue" [ref=e162]:
+                  - generic [ref=e163]: Overdue
+                - cell "0/30" [ref=e165]:
+                  - generic [ref=e168]: 0/30
+                - cell "Annual Accounts 2026-04-15" [ref=e169]:
+                  - paragraph [ref=e170]: Annual Accounts
+                  - paragraph [ref=e171]: 2026-04-15
+                - cell "Never" [ref=e172]
+                - cell "Active" [ref=e173]
+                - cell "Remind" [ref=e174]:
+                  - generic [ref=e175]:
+                    - button "Remind" [ref=e176]:
+                      - img [ref=e177]
+                      - text: Remind
+                    - link [ref=e180]:
+                      - /url: /dashboard/clients/fcc6d2f0-5c33-4f5b-986a-6ae3a81c8afe
+                      - img [ref=e181]
+              - row "A& Abby & Wells No Action 0/5 No deadline Not set Never Active" [ref=e184] [cursor=pointer]:
+                - cell [ref=e185]:
+                  - button [ref=e186]:
+                    - img [ref=e187]
+                - cell "A& Abby & Wells" [ref=e189]:
+                  - generic [ref=e190]:
+                    - generic [ref=e191]: A&
+                    - generic [ref=e192]:
+                      - paragraph [ref=e193]: Abby & Wells
+                      - paragraph
+                - cell "No Action" [ref=e194]:
+                  - generic [ref=e195]: No Action
+                - cell "0/5" [ref=e197]:
+                  - generic [ref=e200]: 0/5
+                - cell "No deadline Not set" [ref=e201]:
+                  - paragraph [ref=e202]: No deadline
+                  - paragraph [ref=e203]: Not set
+                - cell "Never" [ref=e204]
+                - cell "Active" [ref=e205]
+                - cell [ref=e206]:
+                  - link [ref=e208]:
+                    - /url: /dashboard/clients/08bb532d-d88c-4286-a886-40178e907604
+                    - img [ref=e209]
+              - row "EC Eastside Club No Action 0/5 No deadline Not set Never Active" [ref=e212] [cursor=pointer]:
+                - cell [ref=e213]:
+                  - button [ref=e214]:
+                    - img [ref=e215]
+                - cell "EC Eastside Club" [ref=e217]:
+                  - generic [ref=e218]:
+                    - generic [ref=e219]: EC
+                    - generic [ref=e220]:
+                      - paragraph [ref=e221]: Eastside Club
+                      - paragraph
+                - cell "No Action" [ref=e222]:
+                  - generic [ref=e223]: No Action
+                - cell "0/5" [ref=e225]:
+                  - generic [ref=e228]: 0/5
+                - cell "No deadline Not set" [ref=e229]:
+                  - paragraph [ref=e230]: No deadline
+                  - paragraph [ref=e231]: Not set
+                - cell "Never" [ref=e232]
+                - cell "Active" [ref=e233]
+                - cell [ref=e234]:
+                  - link [ref=e236]:
+                    - /url: /dashboard/clients/09594f3c-eb82-4ac2-9c2b-dcd8a3641f11
+                    - img [ref=e237]
+              - row "GP Gable Print No Action 0/5 No deadline Not set Never Active" [ref=e240] [cursor=pointer]:
+                - cell [ref=e241]:
+                  - button [ref=e242]:
+                    - img [ref=e243]
+                - cell "GP Gable Print" [ref=e245]:
+                  - generic [ref=e246]:
+                    - generic [ref=e247]: GP
+                    - generic [ref=e248]:
+                      - paragraph [ref=e249]: Gable Print
+                      - paragraph
+                - cell "No Action" [ref=e250]:
+                  - generic [ref=e251]: No Action
+                - cell "0/5" [ref=e253]:
+                  - generic [ref=e256]: 0/5
+                - cell "No deadline Not set" [ref=e257]:
+                  - paragraph [ref=e258]: No deadline
+                  - paragraph [ref=e259]: Not set
+                - cell "Never" [ref=e260]
+                - cell "Active" [ref=e261]
+                - cell [ref=e262]:
+                  - link [ref=e264]:
+                    - /url: /dashboard/clients/0c647a91-c6b5-40eb-aa87-17e3be833b00
+                    - img [ref=e265]
+              - row "RB Ridgeway Bank No Action 0/5 No deadline Not set Never Active" [ref=e268] [cursor=pointer]:
+                - cell [ref=e269]:
+                  - button [ref=e270]:
+                    - img [ref=e271]
+                - cell "RB Ridgeway Bank" [ref=e273]:
+                  - generic [ref=e274]:
+                    - generic [ref=e275]: RB
+                    - generic [ref=e276]:
+                      - paragraph [ref=e277]: Ridgeway Bank
+                      - paragraph
+                - cell "No Action" [ref=e278]:
+                  - generic [ref=e279]: No Action
+                - cell "0/5" [ref=e281]:
+                  - generic [ref=e284]: 0/5
+                - cell "No deadline Not set" [ref=e285]:
+                  - paragraph [ref=e286]: No deadline
+                  - paragraph [ref=e287]: Not set
+                - cell "Never" [ref=e288]
+                - cell "Active" [ref=e289]
+                - cell [ref=e290]:
+                  - link [ref=e292]:
+                    - /url: /dashboard/clients/3ed2782f-8032-48fa-9c6a-a40ed90ec1eb
+                    - img [ref=e293]
+              - row "BS Basket Shop shop@basketshop.co No Action 0/5 No deadline Not set Never Active" [ref=e296] [cursor=pointer]:
+                - cell [ref=e297]:
+                  - button [ref=e298]:
+                    - img [ref=e299]
+                - cell "BS Basket Shop shop@basketshop.co" [ref=e301]:
+                  - generic [ref=e302]:
+                    - generic [ref=e303]: BS
+                    - generic [ref=e304]:
+                      - paragraph [ref=e305]: Basket Shop
+                      - paragraph [ref=e306]: shop@basketshop.co
+                - cell "No Action" [ref=e307]:
+                  - generic [ref=e308]: No Action
+                - cell "0/5" [ref=e310]:
+                  - generic [ref=e313]: 0/5
+                - cell "No deadline Not set" [ref=e314]:
+                  - paragraph [ref=e315]: No deadline
+                  - paragraph [ref=e316]: Not set
+                - cell "Never" [ref=e317]
+                - cell "Active" [ref=e318]
+                - cell [ref=e319]:
+                  - link [ref=e321]:
+                    - /url: /dashboard/clients/2991c181-818a-40db-9899-aedf46c2fd7b
+                    - img [ref=e322]
+              - row "RA RITE Agency No Action 0/5 No deadline Not set Never Active" [ref=e325] [cursor=pointer]:
+                - cell [ref=e326]:
+                  - button [ref=e327]:
+                    - img [ref=e328]
+                - cell "RA RITE Agency" [ref=e330]:
+                  - generic [ref=e331]:
+                    - generic [ref=e332]: RA
+                    - generic [ref=e333]:
+                      - paragraph [ref=e334]: RITE Agency
+                      - paragraph
+                - cell "No Action" [ref=e335]:
+                  - generic [ref=e336]: No Action
+                - cell "0/5" [ref=e338]:
+                  - generic [ref=e341]: 0/5
+                - cell "No deadline Not set" [ref=e342]:
+                  - paragraph [ref=e343]: No deadline
+                  - paragraph [ref=e344]: Not set
+                - cell "Never" [ref=e345]
+                - cell "Active" [ref=e346]
+                - cell [ref=e347]:
+                  - link [ref=e349]:
+                    - /url: /dashboard/clients/dc8afb8e-fd91-466e-87af-5ce902a5d4ed
+                    - img [ref=e350]

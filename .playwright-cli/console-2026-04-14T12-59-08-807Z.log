@@ -1,0 +1,74 @@
+[     189ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://staticoffice.zhihu.com/static/favicon.ico:0
+[    6057ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6058ms] [LOG] [LocaleProvider] 检测到的 locale: zh @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6073ms] [LOG] [Testimonials] 无数据，不渲染 @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/236-1367b79b1466a2db.js:0
+[    6087ms] [LOG] [Apollo API] 📡 请求 URL: https://www.minimaxi.com/setting/get_app_settings @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6087ms] [LOG] [Apollo API] 📡 请求参数: {fe_setting_key: home_footer_navigation} @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6089ms] [LOG] [Locale] 🔗 语言检测: zh (pathname: / ) @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6089ms] [LOG] [LocaleProvider] SSR 已传入导航数据，跳过客户端获取 @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6516ms] [LOG] [Track] Sensors SDK 导入成功 @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6516ms] [LOG] [Track] Sensors SDK 导入成功 @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6516ms] [LOG] [Track] Sensors SDK 导入成功 @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6524ms] [LOG] [Track] Sensors SDK 初始化成功, env: prod @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    6528ms] [LOG] [Track] Sensors SDK 初始化成功, env: prod @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    7260ms] [LOG] [Apollo API] 📥 响应数据: {base_resp: Object, data: Object} @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[    7260ms] [LOG] [Footer] Apollo 数据: {qrcode: Array(4), zh: Array(5), en: Array(5)} @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/236-1367b79b1466a2db.js:0
+[   15930ms] [ERROR] Failed to fetch RSC payload for https://www.minimaxi.com/audio. Falling back to browser navigation. ChunkLoadError: Loading chunk 2101 failed.
+(error: https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/2101-0763624f8e3ddfd8.js)
+    at s.f.j (https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/webpack-f82f3070d26e8ce8.js:1:3293)
+    at https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/webpack-f82f3070d26e8ce8.js:1:1400
+    at Array.reduce (<anonymous>)
+    at s.e (https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/webpack-f82f3070d26e8ce8.js:1:1366)
+    at https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/945-f8b3d55c7ef9fade.js:2:18938
+    at https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/945-f8b3d55c7ef9fade.js:2:19140
+    at t (https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/945-f8b3d55c7ef9fade.js:2:19343) @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/945-f8b3d55c7ef9fade.js:0
+[   28589ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28597ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28607ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28613ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28622ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28629ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28638ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28646ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28654ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28663ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28671ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28679ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28688ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28697ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28704ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28714ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28721ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28729ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28738ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28746ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28755ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28763ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28772ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28779ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28788ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28796ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28805ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28813ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28821ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28829ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28838ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28847ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28854ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28863ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28871ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28880ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28890ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28895ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28904ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28912ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28921ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28930ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28939ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28943ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28947ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28955ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28964ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   28967ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   29008ms] [LOG] [Locale] 🔗 语言检测: zh (pathname: /models/text/m27 ) @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0
+[   29008ms] [LOG] [LocaleProvider] 初始化, initialLocale: undefined @ https://filecdn.minimax.chat/open_platform_web/prod-zh-minimax-0.1.23/_next/static/chunks/687-f91994c006c81c15.js:0

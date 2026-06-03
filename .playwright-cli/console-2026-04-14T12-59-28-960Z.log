@@ -1,0 +1,3 @@
+[    2499ms] [WARNING] [tiptap warn]: Duplicate extension names found: ['link']. This can lead to issues. @ https://cdn.hailuoai.com/mmx-agent/prod-web-sh-0.1.356/_next/static/chunks/22747d63-abd35455b2b8b3b5.js:0
+[    3373ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ https://agent.minimaxi.com/:0
+[    3830ms] [WARNING] Error while trying to use the following icon from the Manifest: https://agent.minimaxi.com/assets/logo/favicon-192_v2.png?v=2 (Resource size is not correct - typo in the Manifest?) @ https://agent.minimaxi.com/:0
