@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Star, Plus, Send, Eye, Search, Filter,
   ChevronRight, X, Upload, Mail, FileText, Zap,
-  Download, MoreHorizontal, Users, RotateCcw, Trash2, AlertCircle
+  Download, MoreHorizontal, Users, RotateCcw, Trash2, AlertCircle, ToggleLeft
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ClientListItem } from '@/lib/data/clients'
@@ -675,10 +675,39 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
         </table>
         </div>
 
-        {filtered.length === 0 && (
+        {sortedFiltered.length === 0 && (
           <div className="py-16 text-center">
-            <Users size={36} className="mx-auto mb-3 text-gray-200" />
-            <p className="text-sm text-gray-400">No clients match your search</p>
+            {managementTab === 'dormant' && !search ? (
+              <>
+                <ToggleLeft size={32} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm font-semibold text-gray-500">No dormant clients</p>
+                <p className="text-xs text-gray-400 mt-1">Clients you mark as dormant will appear here.</p>
+              </>
+            ) : managementTab === 'deleted' && !search ? (
+              <>
+                <Trash2 size={32} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm font-semibold text-gray-500">No deleted clients</p>
+                <p className="text-xs text-gray-400 mt-1">Soft-deleted clients appear here for 30 days.</p>
+              </>
+            ) : search ? (
+              <>
+                <Search size={32} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm text-gray-400">No clients match &ldquo;{search}&rdquo;</p>
+                <button onClick={() => setSearch('')} className="text-xs text-emerald-600 hover:underline mt-1">Clear search</button>
+              </>
+            ) : clients.length === 0 ? (
+              <>
+                <Users size={36} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm font-semibold text-gray-500">No clients yet</p>
+                <p className="text-xs text-gray-400 mt-1">Import from Xero or add a client manually to get started.</p>
+              </>
+            ) : (
+              <>
+                <Users size={32} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm text-gray-400">No clients match your filter</p>
+                <button onClick={() => setStatusFilter('All')} className="text-xs text-emerald-600 hover:underline mt-1">Clear filter</button>
+              </>
+            )}
           </div>
         )}
       </div>
