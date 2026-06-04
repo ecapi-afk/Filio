@@ -20,6 +20,7 @@ import {
   formatFileSize,
   formatUploadedAt,
   getCategoryBadgeColor,
+  DOC_CATEGORIES,
 } from '@/lib/file-types'
 import { Card } from '@/components/ui/card'
 
@@ -156,6 +157,10 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
   const [isDormant, setIsDormant] = useState((client as any).management_status === 'dormant')
   const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; metadata: Record<string, unknown>; timestamp: string; actor: string }[]>([])
   const [auditLoading, setAuditLoading] = useState(false)
+  const [reclassifyingId, setReclassifyingId] = useState<string | null>(null)
+  const [reclassifyCategory, setReclassifyCategory] = useState('')
+  const [reclassifySaving, setReclassifySaving] = useState(false)
+  const [localFileTypes, setLocalFileTypes] = useState<Record<string, string>>({})
   const [settingStatus, setSettingStatus] = useState(false)
   const [deletingClient, setDeletingClient] = useState(false)
   const [dismissedBanners, setDismissedBanners] = useState<string[]>([])
@@ -397,6 +402,30 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
 
     const win = window.open('', '_blank')
     if (win) { win.document.write(html); win.document.close() }
+  }
+
+  const handleReclassify = async (uploadId: string) => {
+    if (!reclassifyCategory) return
+    setReclassifySaving(true)
+    try {
+      const res = await fetch(`/api/uploads/${uploadId}/reclassify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_type: reclassifyCategory }),
+      })
+      if (res.ok) {
+        setLocalFileTypes(prev => ({ ...prev, [uploadId]: reclassifyCategory }))
+        setReclassifyingId(null)
+        toast.success('File reclassified')
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast.error(body.error ?? 'Failed to reclassify')
+      }
+    } catch {
+      toast.error('Failed to reclassify')
+    } finally {
+      setReclassifySaving(false)
+    }
   }
 
   const handleSaveSettings = async () => {
@@ -957,9 +986,14 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getCategoryBadgeColor(u.file_type || 'Uncategorized')}`}>
-                      {u.file_type || 'Uncategorized'}
-                    </span>
+                    {(() => {
+                      const cat = localFileTypes[u.id] ?? u.file_type ?? 'Uncategorized'
+                      return (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getCategoryBadgeColor(cat)}`}>
+                          {cat}
+                        </span>
+                      )
+                    })()}
                   </td>
                   <td className="px-5 py-3.5">
                     <span className="text-xs text-gray-500 capitalize">{u.channel || 'Portal'}</span>
@@ -975,12 +1009,52 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <button onClick={() => {
-                      navigator.clipboard.writeText(u.filename)
-                      toast.success('Filename copied!')
-                    }} className="text-xs text-gray-500 hover:text-gray-700">
-                      <Copy size={14} />
-                    </button>
+                    {reclassifyingId === u.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={reclassifyCategory}
+                          onChange={e => setReclassifyCategory(e.target.value)}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          <option value="">Pick type…</option>
+                          {DOC_CATEGORIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleReclassify(u.id)}
+                          disabled={!reclassifyCategory || reclassifySaving}
+                          className="text-[10px] font-semibold text-white bg-emerald-600 px-2 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {reclassifySaving ? '…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setReclassifyingId(null)}
+                          className="text-[10px] text-gray-400 hover:text-gray-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => {
+                          navigator.clipboard.writeText(u.filename)
+                          toast.success('Filename copied!')
+                        }} className="text-xs text-gray-400 hover:text-gray-600" title="Copy filename">
+                          <Copy size={13} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setReclassifyingId(u.id)
+                            setReclassifyCategory(localFileTypes[u.id] ?? u.file_type ?? '')
+                          }}
+                          className="text-[10px] text-gray-400 hover:text-emerald-600 font-medium"
+                          title="Reclassify file type"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
