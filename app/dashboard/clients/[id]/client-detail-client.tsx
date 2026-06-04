@@ -157,6 +157,8 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
   const [settingStatus, setSettingStatus] = useState(false)
   const [deletingClient, setDeletingClient] = useState(false)
   const [dismissedBanners, setDismissedBanners] = useState<string[]>([])
+  const [quotaExceededOpen, setQuotaExceededOpen] = useState(false)
+  const [quotaLimit, setQuotaLimit] = useState(20)
   // Confirm dialog state
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -243,27 +245,60 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
     setConfirmOpen(true)
   }
 
-  const handleSetDormantActive = async () => {
-    setShowOverflowMenu(false)
-    const newStatus = isDormant ? 'active' : 'dormant'
+  const handleActivate = async () => {
     setSettingStatus(true)
     try {
-      const res = await fetch(`/api/clients/${clientId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ management_status: newStatus }),
-      })
+      const res = await fetch(`/api/clients/${clientId}/activate`, { method: 'POST' })
       if (res.ok) {
-        setIsDormant(!isDormant)
-        toast.success(`Client marked as ${newStatus}`)
+        setIsDormant(false)
+        toast.success('Client reactivated')
       } else {
-        toast.error('Failed to update status')
+        const body = await res.json().catch(() => ({}))
+        if (body.error === 'quota_exceeded') {
+          setQuotaLimit(body.limit ?? 20)
+          setQuotaExceededOpen(true)
+        } else {
+          toast.error('Failed to reactivate client')
+        }
       }
     } catch {
-      toast.error('Failed to update status')
+      toast.error('Failed to reactivate client')
     } finally {
       setSettingStatus(false)
     }
+  }
+
+  const handleSetDormant = async () => {
+    setSettingStatus(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/set-dormant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'manual' }),
+      })
+      if (res.ok) {
+        setIsDormant(true)
+        toast.success('Client marked as dormant')
+      } else {
+        toast.error('Failed to set client dormant')
+      }
+    } catch {
+      toast.error('Failed to set client dormant')
+    } finally {
+      setSettingStatus(false)
+      setConfirmOpen(false)
+    }
+  }
+
+  const openSetDormantConfirm = () => {
+    setShowOverflowMenu(false)
+    setConfirmConfig({
+      title: 'Set Client to Dormant?',
+      description: `${client.name} will be marked as dormant. Their portal will remain accessible but they will be excluded from active reminders and reports. You can reactivate them at any time.`,
+      confirmLabel: 'Set Dormant',
+      onConfirm: handleSetDormant,
+    })
+    setConfirmOpen(true)
   }
 
   const openDeleteConfirm = () => {
@@ -510,16 +545,23 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
                         <RefreshCw size={14} className="text-gray-400" /> Regenerate Magic Email
                       </button>
                       <div className="h-px bg-gray-100 my-1" />
-                      <button
-                        onClick={handleSetDormantActive}
-                        disabled={settingStatus}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
-                        {isDormant
-                          ? <><ToggleLeft size={14} className="text-gray-400" /> Set as Active</>
-                          : <><ToggleRight size={14} className="text-emerald-500" /> Set as Dormant</>
-                        }
-                      </button>
+                      {isDormant ? (
+                        <button
+                          onClick={() => { setShowOverflowMenu(false); handleActivate() }}
+                          disabled={settingStatus}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          <ToggleLeft size={14} className="text-gray-400" /> Reactivate Client
+                        </button>
+                      ) : (
+                        <button
+                          onClick={openSetDormantConfirm}
+                          disabled={settingStatus}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          <ToggleRight size={14} className="text-emerald-500" /> Set as Dormant
+                        </button>
+                      )}
                       <div className="h-px bg-gray-100 my-1" />
                       <button
                         onClick={openDeleteConfirm}
@@ -576,7 +618,20 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border text-sm" style={{ background: s.bg, borderColor: s.border }}>
               <AlertCircle size={15} style={{ color: s.icon }} className="shrink-0" />
               <span className="flex-1 text-xs font-medium" style={{ color: s.text }}>{primary.message}</span>
-              <button onClick={() => setDismissedBanners(d => [...d, primary.id])} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+              <button
+                onClick={async () => {
+                  setDismissedBanners(d => [...d, primary.id])
+                  if (primary.id === 'overdue') {
+                    // Write dismissal to audit log so compliance record is preserved
+                    await fetch(`/api/clients/${clientId}/log-event`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'overdue_banner_dismissed' }),
+                    }).catch(() => {})
+                  }
+                }}
+                className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+              >
                 <X size={14} style={{ color: s.text }} />
               </button>
             </div>
@@ -1048,9 +1103,41 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
           description={confirmConfig.description}
           confirmLabel={confirmConfig.confirmLabel}
           onConfirm={confirmConfig.onConfirm}
-          loading={regeneratingToken || regeneratingMagicEmail || deletingClient}
+          loading={regeneratingToken || regeneratingMagicEmail || deletingClient || settingStatus}
         />
       )}
+
+      {/* Quota Exceeded Dialog */}
+      <Dialog.Root open={quotaExceededOpen} onOpenChange={setQuotaExceededOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl border border-gray-100 p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <AlertTriangle size={18} className="text-amber-500" />
+              </div>
+              <div>
+                <Dialog.Title className="text-sm font-bold text-gray-900 mb-1">Client Limit Reached</Dialog.Title>
+                <Dialog.Description className="text-sm text-gray-500 leading-relaxed">
+                  Your plan allows up to <strong>{quotaLimit} active clients</strong>. Set another client to dormant first, or upgrade your plan to reactivate this client.
+                </Dialog.Description>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Dialog.Close asChild>
+                <button className="btn-secondary text-xs px-4 py-2">Close</button>
+              </Dialog.Close>
+              <a
+                href="/dashboard/settings?tab=billing"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+                style={{ background: '#059669' }}
+              >
+                Upgrade Plan
+              </a>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }

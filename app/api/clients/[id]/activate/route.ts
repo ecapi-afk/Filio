@@ -14,7 +14,10 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: profile } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { data: profile } = await db
     .from('profiles')
     .select('firm_id')
     .eq('id', user.id)
@@ -24,13 +27,35 @@ export async function POST(
     return NextResponse.json({ error: 'No firm associated' }, { status: 403 })
   }
 
+  // Quota check: count current active clients vs plan limit
+  const [{ count: activeCount }, { data: subscription }] = await Promise.all([
+    db
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('firm_id', profile.firm_id)
+      .eq('management_status', 'active'),
+    db
+      .from('subscriptions')
+      .select('client_limit')
+      .eq('firm_id', profile.firm_id)
+      .maybeSingle(),
+  ])
+
+  const clientLimit = subscription?.client_limit ?? 20
+  if ((activeCount ?? 0) >= clientLimit) {
+    return NextResponse.json(
+      { error: 'quota_exceeded', limit: clientLimit },
+      { status: 403 }
+    )
+  }
+
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('clients')
       .update({
         management_status: 'active',
         activated_at: new Date().toISOString(),
-        dormant_reminded_at: null, // Reset for new dormant cycle
+        dormant_reminded_at: null, // Reset so dormant cycle restarts on next dormant
       })
       .eq('id', id)
       .eq('firm_id', profile.firm_id)
@@ -39,8 +64,7 @@ export async function POST(
 
     if (error) throw error
 
-    // Audit log
-    await supabase.from('audit_logs').insert({
+    await db.from('audit_logs').insert({
       firm_id: profile.firm_id,
       client_id: id,
       actor: user.id,
