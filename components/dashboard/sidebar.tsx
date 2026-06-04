@@ -65,6 +65,16 @@ export function DashboardSidebar() {
   const [xeroLastSync, setXeroLastSync] = useState<string | null>(null)
   const [xeroOrgName, setXeroOrgName] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = () => setMobileOpen(v => !v)
+    window.addEventListener('toggle-mobile-sidebar', handler)
+    return () => window.removeEventListener('toggle-mobile-sidebar', handler)
+  }, [])
+
+  // Close mobile sidebar on route change
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   useEffect(() => {
     setMounted(true)
@@ -198,7 +208,19 @@ export function DashboardSidebar() {
   const displayFirm = mounted ? (isLoading ? '' : (firmName || 'No firm')) : ''
 
   return (
-    <aside className="sidebar-light fixed left-0 top-0 z-40 flex h-screen w-60 flex-col">
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+    <aside className={cn(
+      "sidebar-light fixed left-0 top-0 z-40 flex h-screen w-60 flex-col transition-transform duration-200",
+      "lg:translate-x-0",
+      mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+    )}>
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-5 border-b border-gray-100">
         <div
@@ -390,5 +412,6 @@ export function DashboardSidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }

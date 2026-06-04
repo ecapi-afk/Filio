@@ -156,3 +156,39 @@ export async function sendPasswordResetTemplate(params: PasswordResetTemplatePar
     },
   })
 }
+
+// ---------------------------------------------------------------------------
+// OTP (Portal Security Verification)
+// ---------------------------------------------------------------------------
+
+interface OTPEmailVars {
+  to: string
+  clientName: string
+  firmName: string
+  otpCode: string
+}
+
+export async function sendOTPEmail(vars: OTPEmailVars) {
+  const client = getClient()
+  const firstName = vars.clientName.split(' ')[0]
+
+  const result = await client.sendEmail({
+    From: FROM,
+    To: vars.to,
+    Subject: `Your verification code — ${vars.otpCode}`,
+    HtmlBody: `
+      <p>Hi ${firstName},</p>
+      <p>Your security verification code for <strong>${vars.firmName}</strong>'s client portal is:</p>
+      <p style="font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;padding:16px;background:#f9fafb;border-radius:8px;">${vars.otpCode}</p>
+      <p>This code expires in <strong>10 minutes</strong> and can only be used once.</p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+      <p>— The ${vars.firmName} team via Filio</p>
+    `,
+    TextBody: `Hi ${firstName},\n\nYour verification code is: ${vars.otpCode}\n\nThis code expires in 10 minutes.\n\n— The ${vars.firmName} team via Filio`,
+    MessageStream: 'outbound',
+  })
+
+  if (result.ErrorCode !== 0) {
+    throw new Error(`Postmark error ${result.ErrorCode}: ${result.Message}`)
+  }
+}

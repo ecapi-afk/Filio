@@ -142,20 +142,41 @@ export function UploadsClient({
   const failedCount = initialUploads.filter((u) => u.xeroStatus.toLowerCase() === 'error' || u.xeroStatus.toLowerCase() === 'failed').length
   const pendingCount = initialUploads.filter((u) => u.xeroStatus.toLowerCase() === 'pending').length
 
-  const handleRetry = (uploadId: string) => {
-    toast.info(t('uploads.retrySyc') + '...')
-    // TODO: Implement retry upload logic
+  const handleRetry = async (uploadId: string) => {
+    const toastId = toast.loading('Retrying Xero sync…')
+    try {
+      const res = await fetch(`/api/uploads/${uploadId}/retry`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Retry failed')
+      toast.success('Synced to Xero', { id: toastId })
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Retry failed', { id: toastId })
+    }
   }
 
   const handleExportCsv = () => {
-    toast.info(t('uploads.exportCsv') + ' — ' + t('common.loading'))
-    // TODO: Implement CSV export
+    const headers = ['Client', 'Filename', 'Uploaded', 'Channel', 'Xero Status']
+    const rows = filtered.map(u => [
+      `"${u.clientName.replace(/"/g, '""')}"`,
+      `"${u.filename.replace(/"/g, '""')}"`,
+      new Date(u.uploadedAt).toISOString().slice(0, 10),
+      u.channel,
+      u.xeroStatus,
+    ])
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `uploads-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Synced to Xero */}
         <div className="border rounded-xl p-4 flex items-center gap-4 bg-gradient-to-br from-emerald-50/50 to-white">
           <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-50">
@@ -186,7 +207,12 @@ export function UploadsClient({
           </div>
           {failedCount > 0 && (
             <button
-              onClick={() => toast.info(t('uploads.retrySyc') + '...')}
+              onClick={() => {
+                const failedIds = initialUploads
+                  .filter(u => u.xeroStatus.toLowerCase() === 'error' || u.xeroStatus.toLowerCase() === 'failed')
+                  .map(u => u.id)
+                failedIds.forEach(id => handleRetry(id))
+              }}
               className="ml-auto text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1.5"
             >
               <RefreshCw size={12} /> {t('common.retry')}

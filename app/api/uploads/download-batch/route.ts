@@ -1,4 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+// DEFERRED: Batch ZIP download is temporarily disabled.
+// Reason: Requires server-side temporary storage of user files during ZIP assembly,
+// which has data handling and compliance implications that need further review.
+// Resume when: A server-side streaming ZIP approach (no temp storage) is designed,
+// or a dedicated secure temp storage policy is in place.
+//
+// Original implementation preserved below in comments.
+
+export async function POST(_request: NextRequest) {
+  return NextResponse.json(
+    { error: 'Batch download is not available yet. Please download files individually.' },
+    { status: 501 }
+  )
+}
+
+export async function GET(_request: NextRequest) {
+  return NextResponse.json(
+    { error: 'Batch download is not available yet.' },
+    { status: 501 }
+  )
+}
+
+/*
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -97,3 +121,4 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ data: job })
 }
+*/

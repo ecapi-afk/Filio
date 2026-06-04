@@ -23,6 +23,7 @@ interface Firm {
   xero_org_name: string | null;
   xero_last_sync_at: string | null;
   xero_upload_mode?: string;
+  xero_refresh_token_expires_at?: string | null;
 }
 
 // Current OAuth scopes requested by Filio
@@ -274,6 +275,25 @@ export function XeroSettingsClient({ firm: initialFirm }: XeroSettingsClientProp
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Last Sync</p>
                   <p className="text-sm font-semibold">{formatRelativeTime(firm.xero_last_sync_at)}</p>
                 </div>
+                {firm.xero_refresh_token_expires_at && (() => {
+                  const expiresAt = new Date(firm.xero_refresh_token_expires_at!)
+                  const daysLeft = Math.ceil((expiresAt.getTime() - Date.now()) / 86400000)
+                  const isExpiringSoon = daysLeft <= 14
+                  const isExpired = daysLeft <= 0
+                  return (
+                    <div className={`col-span-2 rounded-lg p-3 ${isExpired ? 'bg-red-50' : isExpiringSoon ? 'bg-amber-50' : 'bg-muted/50'}`}>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Token Expiry</p>
+                      <p className={`text-sm font-semibold ${isExpired ? 'text-red-600' : isExpiringSoon ? 'text-amber-600' : ''}`}>
+                        {isExpired
+                          ? 'Expired — reconnect Xero'
+                          : isExpiringSoon
+                          ? `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} — reconnect soon`
+                          : `Valid for ${daysLeft} days (${expiresAt.toLocaleDateString('en-GB')})`
+                        }
+                      </p>
+                    </div>
+                  )
+                })()}
               </div>
             )}
 

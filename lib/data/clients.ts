@@ -26,6 +26,7 @@ export type ClientListItem = {
   xero_not_found: boolean
   last_upload: string | null
   created_at: string
+  deleted_at?: string | null
   portal_token?: string | null
   magic_email_slug?: string | null
   short_links?: Array<{ short_code: string; is_active: boolean }>
@@ -240,6 +241,7 @@ export async function getClients(
     managementStatus?: ManagementStatus
     healthStatus?: HealthStatus
     search?: string
+    includeDeleted?: boolean
   } = {}
 ): Promise<ClientListItem[]> {
   const supabase = await createClient()
@@ -283,13 +285,14 @@ export async function getClients(
       next_deadline_date,
       next_deadline_type,
       uploads_count,
+      deleted_at,
       short_links(short_code, is_active)
     `)
     .eq('firm_id', firmId)
 
   if (options.managementStatus) {
     query = query.eq('management_status', options.managementStatus)
-  } else {
+  } else if (!options.includeDeleted) {
     query = query.neq('management_status', 'deleted')
   }
 

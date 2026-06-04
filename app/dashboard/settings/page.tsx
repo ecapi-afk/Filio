@@ -30,7 +30,7 @@ export default async function SettingsPage() {
   // Fetch subscription
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('plan, client_limit, status')
+    .select('plan, client_limit, status, current_period_end, stripe_customer_id')
     .eq('firm_id', profile.firm_id)
     .single();
 
@@ -44,7 +44,7 @@ export default async function SettingsPage() {
   return (
     <SettingsClient 
       firm={firm} 
-      subscription={subscription || { plan: 'trial', client_limit: 20, status: 'active' }}
+      subscription={subscription || { plan: 'trial', client_limit: 20, status: 'active', current_period_end: null, stripe_customer_id: null }}
       clientCount={count || 0}
     />
   );

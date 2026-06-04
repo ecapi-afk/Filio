@@ -222,7 +222,7 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
   return (
     <div className="space-y-6">
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Active Clients */}
         <div className="filio-card p-5 stat-card-green">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-3">Active Clients</p>

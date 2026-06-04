@@ -183,26 +183,60 @@
     color: #34D399;
   }
 
+  /* ── D-20: Global Interaction States ── */
+
+  /* Focus ring: emerald outline, 2px offset, visible on keyboard nav */
+  :focus-visible {
+    outline: 2px solid #059669;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Disabled: uniform 40% opacity + no-pointer cursor */
+  :disabled,
+  [aria-disabled="true"],
+  .disabled {
+    opacity: 0.4;
+    cursor: not-allowed !important;
+    pointer-events: none;
+  }
+
+  /* Loading shimmer utility */
+  @keyframes filio-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: filio-shimmer 1.4s ease infinite;
+    border-radius: 4px;
+  }
+
   /* Primary Button */
   .btn-primary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-[7px] text-sm font-semibold text-white transition-all duration-150;
     background: var(--filio-primary);
     box-shadow: 0 1px 3px rgba(5,150,105,0.35);
   }
-  .btn-primary:hover { background: var(--filio-primary-hover); }
+  .btn-primary:hover:not(:disabled) { background: var(--filio-primary-hover); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: auto; }
 
   /* Secondary Button */
   .btn-secondary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-[7px] text-sm font-medium text-gray-700 bg-white border border-gray-200 transition-all duration-150;
   }
-  .btn-secondary:hover { @apply bg-gray-50 border-gray-300; }
+  .btn-secondary:hover:not(:disabled) { @apply bg-gray-50 border-gray-300; }
+  .btn-secondary:active:not(:disabled) { transform: scale(0.98); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: auto; }
 
   /* Xero Button */
   .btn-xero {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-[7px] text-sm font-semibold text-white transition-all duration-150;
     background: #13B5EA;
   }
-  .btn-xero:hover { background: #0ea5d4; }
+  .btn-xero:hover:not(:disabled) { background: #0ea5d4; }
 
   /* Table Row Hover */
   .table-row-overdue { background: #FFF8F8; }
