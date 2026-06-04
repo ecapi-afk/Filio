@@ -50,6 +50,7 @@ export async function GET() {
     full_name: profile?.full_name || user.user_metadata?.full_name || '',
     position: profile?.position || '',
     language: profile?.language || 'en',
+    avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || '',
     firm_id: profile?.firm_id,
     firm_name: firmName,
     xero_org_name: xeroOrgName,

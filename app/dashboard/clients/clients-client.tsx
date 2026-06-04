@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Star, Plus, Send, Eye, Search, Filter,
   ChevronRight, X, Upload, Mail, FileText, Zap,
-  Download, MoreHorizontal, Users
+  Download, MoreHorizontal, Users, RotateCcw, Trash2, AlertCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ClientListItem } from '@/lib/data/clients'
@@ -61,7 +61,7 @@ interface QuickPreviewProps {
 
 function QuickPreview({ client, onClose }: QuickPreviewProps) {
   return (
-    <div className="w-80 shrink-0 filio-card overflow-hidden flex flex-col">
+    <div className="xl:w-80 shrink-0 filio-card overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <h3 className="text-sm font-bold text-gray-900">Client Preview</h3>
@@ -172,6 +172,7 @@ interface ClientsClientProps {
 
 export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
   const [search, setSearch] = useState('')
+  const [managementTab, setManagementTab] = useState<'active' | 'dormant' | 'deleted'>('active')
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'All'>('All')
   const [showStarred, setShowStarred] = useState(false)
   const [starred, setStarred] = useState<Set<string>>(
@@ -181,16 +182,18 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ client: ClientListItem; action: 'complete' | 'reopen' } | null>(null)
   const [updatingPeriod, setUpdatingPeriod] = useState<Set<string>>(new Set())
+  const [restoringClient, setRestoringClient] = useState<Set<string>>(new Set())
 
   // Real clients from DB — no mock fallback
   const clients = initialClients
 
   const filtered = clients.filter(c => {
+    const matchManagement = c.management_status === managementTab
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'All' || c.health_status === statusFilter
     const matchStarred = !showStarred || starred.has(c.id)
-    return matchSearch && matchStatus && matchStarred
+    return matchManagement && matchSearch && matchStatus && matchStarred
   })
 
   const toggleStar = async (id: string, e: React.MouseEvent) => {
@@ -241,6 +244,40 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
     setConfirmAction(null)
   }
 
+  const handleRestoreClient = async (client: ClientListItem, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setRestoringClient(prev => new Set(prev).add(client.id))
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ management_status: 'dormant' }),
+      })
+      if (!res.ok) throw new Error('Failed to restore client')
+      toast.success(`${client.name} restored to Dormant`)
+      window.location.reload()
+    } catch {
+      toast.error('Failed to restore client')
+    } finally {
+      setRestoringClient(prev => {
+        const next = new Set(prev)
+        next.delete(client.id)
+        return next
+      })
+    }
+  }
+
+  const getDeletionCountdown = (deletedAt: string | null | undefined) => {
+    if (!deletedAt) return null
+    const deletedDate = new Date(deletedAt)
+    const purgeDate = new Date(deletedDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const now = new Date()
+    const diffMs = purgeDate.getTime() - now.getTime()
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+    if (diffDays <= 0) return { days: 0, expired: true }
+    return { days: diffDays, expired: false }
+  }
+
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return 'N/A'
     const date = new Date(dateStr)
@@ -266,7 +303,7 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
 
   const statusOptions: (ClientStatus | 'All')[] = ['All', 'Overdue', 'Due Soon', 'Not Started', 'In Progress', 'Complete', 'No Action']
 
-  const overdueCount = clients.filter(c => c.health_status === 'Overdue').length
+  const overdueCount = clients.filter(c => c.management_status === 'active' && c.health_status === 'Overdue').length
 
   // Sort clients: Overdue (most overdue first) → Due Soon → Not Started → In Progress → Complete → No Action
   const sortedFiltered = [...filtered].sort((a, b) => {
@@ -295,9 +332,34 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
   })
 
   return (
-    <div className="flex gap-5">
+    <div className="flex flex-col xl:flex-row gap-5">
       {/* Main Table */}
       <div className="flex-1 filio-card overflow-hidden">
+        {/* Management Status Primary Tabs */}
+        <div className="flex border-b border-gray-100">
+          {(['active', 'dormant', 'deleted'] as const).map(tab => {
+            const count = clients.filter(c => c.management_status === tab).length
+            const isDeleted = tab === 'deleted'
+            return (
+              <button
+                key={tab}
+                onClick={() => { setManagementTab(tab); setStatusFilter('All') }}
+                className={`px-5 py-3 text-sm font-semibold capitalize transition-all border-b-2 -mb-px ${
+                  managementTab === tab
+                    ? isDeleted ? 'border-red-500 text-red-600' : 'border-emerald-600 text-emerald-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab} <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
+                  managementTab === tab
+                    ? isDeleted ? 'bg-red-50 text-red-600' : 'bg-emerald-100 text-emerald-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>{count}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* Filters */}
         <div className="px-5 py-4 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-3">
@@ -323,34 +385,39 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
             </button>
           </div>
 
-          {/* Status Tabs */}
-          <div className="flex gap-1.5 flex-wrap">
-            {statusOptions.map(s => {
-              const count = s === 'All' ? clients.length : clients.filter(c => c.health_status === s).length
-              const isActive = statusFilter === s
-              const colors: Partial<Record<ClientStatus | 'All', string>> = {
-                'All': '#059669', 'Overdue': '#DC2626', 'Due Soon': '#D97706',
-                'Not Started': '#2563EB', 'In Progress': '#854D0E', 'Complete': '#059669', 'No Action': '#6B7280'
-              }
-              return (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
-                  style={isActive
-                    ? { background: colors[s] || '#059669', color: 'white' }
-                    : { background: '#F3F4F6', color: '#6B7280' }
-                  }
-                >
-                  {s} {count > 0 && `(${count})`}
-                </button>
-              )
-            })}
-          </div>
+          {/* Health Status Chips (secondary filter) — only shown in active tab */}
+          {managementTab === 'active' && (
+            <div className="flex gap-1.5 flex-wrap">
+              {statusOptions.map(s => {
+                const count = s === 'All'
+                  ? clients.filter(c => c.management_status === 'active').length
+                  : clients.filter(c => c.management_status === 'active' && c.health_status === s).length
+                const isSelected = statusFilter === s
+                const colors: Partial<Record<ClientStatus | 'All', string>> = {
+                  'All': '#059669', 'Overdue': '#DC2626', 'Due Soon': '#D97706',
+                  'Not Started': '#2563EB', 'In Progress': '#854D0E', 'Complete': '#059669', 'No Action': '#6B7280'
+                }
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all border"
+                    style={isSelected
+                      ? { background: colors[s] || '#059669', color: 'white', borderColor: colors[s] || '#059669' }
+                      : { background: '#F3F4F6', color: '#6B7280', borderColor: '#E5E7EB' }
+                    }
+                  >
+                    {s} {count > 0 && `(${count})`}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Table */}
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px] text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50">
               <th className="w-8 px-4 py-3" />
@@ -359,12 +426,68 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Uploads</th>
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Deadline</th>
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Last Upload</th>
-              <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Portal</th>
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Action</th>
             </tr>
           </thead>
           <tbody>
-            {sortedFiltered.map(client => (
+            {sortedFiltered.map(client => {
+              if (managementTab === 'deleted') {
+                const countdown = getDeletionCountdown(client.deleted_at)
+                return (
+                  <tr key={client.id} className="border-b border-gray-50 bg-gray-50/60 opacity-75">
+                    <td className="px-4 py-3.5">
+                      <Trash2 size={14} className="text-red-300" />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 bg-gray-400">
+                          {client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-500 line-through">{client.name}</p>
+                          <p className="text-xs text-gray-400">{client.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="status-badge" style={{ background: '#FEE2E2', color: '#DC2626' }}>Deleted</span>
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-gray-400">
+                      {client.upload_progress?.uploaded || 0} files
+                    </td>
+                    <td className="px-4 py-3.5" colSpan={2}>
+                      {countdown ? (
+                        countdown.expired ? (
+                          <span className="text-xs text-red-500 font-medium">Permanent deletion pending</span>
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            Permanently deleted in <span className="font-semibold text-red-500">{countdown.days}d</span>
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-xs text-gray-400">Scheduled for deletion</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <button
+                        onClick={(e) => handleRestoreClient(client, e)}
+                        disabled={restoringClient.has(client.id)}
+                        className="btn-secondary text-xs px-2.5 py-1.5 flex items-center gap-1"
+                      >
+                        {restoringClient.has(client.id) ? (
+                          <span className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <RotateCcw size={11} /> Restore
+                          </>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              }
+
+              return (
               <tr
                 key={client.id}
                 className="border-b border-gray-50 hover:brightness-[0.98] transition-all cursor-pointer"
@@ -382,19 +505,36 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${getClientAvatarBg(client.health_status)}`}
-                    >
-                      {client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                    <div className="relative shrink-0">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${getClientAvatarBg(client.health_status)}`}
+                      >
+                        {client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      {client.xero_not_found && (
+                        <span title="Xero contact not found — uploads will fail" className="absolute -top-1 -right-1">
+                          <AlertCircle size={10} className="text-orange-500 fill-orange-100" />
+                        </span>
+                      )}
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">{client.name}</p>
-                      <p className="text-xs text-gray-400">{client.email}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs text-gray-400">{client.email}</p>
+                        <span className={`text-[10px] font-medium px-1.5 py-0 rounded-full leading-4 ${
+                          client.portal_status === 'Active' ? 'bg-emerald-50 text-emerald-600' :
+                          client.portal_status === 'Frozen' ? 'bg-gray-100 text-gray-500' :
+                          'bg-red-50 text-red-500'
+                        }`}>{client.portal_status}</span>
+                      </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3.5">
-                  <StatusBadge status={client.health_status as ClientStatus} />
+                  {managementTab === 'dormant'
+                    ? <span className="status-badge" style={{ background: '#F3F4F6', color: '#6B7280' }}>Dormant</span>
+                    : <StatusBadge status={client.health_status as ClientStatus} />
+                  }
                 </td>
                 <td className="px-4 py-3.5">
                   <span className="text-xs text-gray-700">
@@ -411,17 +551,6 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
                   </div>
                 </td>
                 <td className="px-4 py-3.5 text-xs text-gray-500">{formatRelativeUpload(client.last_upload)}</td>
-                <td className="px-4 py-3.5">
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      client.portal_status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
-                      client.portal_status === 'Frozen' ? 'bg-gray-100 text-gray-500' :
-                      'bg-red-50 text-red-600'
-                    }`}
-                  >
-                    {client.portal_status}
-                  </span>
-                </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-1.5">
                     {(client.health_status === 'Overdue' || client.health_status === 'Due Soon') && (
@@ -490,9 +619,11 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
                   </div>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
+        </div>
 
         {filtered.length === 0 && (
           <div className="py-16 text-center">

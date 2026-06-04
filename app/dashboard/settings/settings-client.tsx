@@ -37,6 +37,7 @@ interface Firm {
   xero_connection_status: string;
   xero_org_name: string | null;
   xero_last_sync_at: string | null;
+  xero_refresh_token_expires_at: string | null;
   reply_to_email: string | null;
   default_reminder_days: number[] | null;
   auto_reminders_enabled: boolean;
@@ -44,9 +45,17 @@ interface Firm {
   timezone: string | null;
 }
 
+interface Subscription {
+  plan: string;
+  client_limit: number;
+  status: string;
+  current_period_end?: string | null;
+  stripe_customer_id?: string | null;
+}
+
 interface SettingsClientProps {
   firm: Firm | null;
-  subscription?: { plan: string; client_limit: number; status: string };
+  subscription?: Subscription;
   clientCount?: number;
 }
 
@@ -166,16 +175,37 @@ function XeroSettings({ firm, setFirm }: { firm: Firm | null; setFirm?: (f: Firm
         </CardHeader>
         <CardContent className="space-y-4">
           {connected && firm && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Organisation</p>
-                <p className="text-sm font-semibold">{firm.xero_org_name || 'Not connected'}</p>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Organisation</p>
+                  <p className="text-sm font-semibold">{firm.xero_org_name || 'Not connected'}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Last Sync</p>
+                  <p className="text-sm font-semibold">{firm.xero_last_sync_at ? formatRelativeTime(firm.xero_last_sync_at) : 'Never'}</p>
+                </div>
               </div>
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Last Sync</p>
-                <p className="text-sm font-semibold">{firm.xero_last_sync_at ? formatRelativeTime(firm.xero_last_sync_at) : 'Never'}</p>
-              </div>
-            </div>
+              {firm.xero_refresh_token_expires_at && (() => {
+                const expiresAt = new Date(firm.xero_refresh_token_expires_at)
+                const daysLeft = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                if (daysLeft <= 7) {
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                      <Zap className="h-4 w-4 text-amber-500 shrink-0" />
+                      <p className="text-xs text-amber-700 font-medium">
+                        Refresh token expires in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong> — reconnect soon to avoid interruption.
+                      </p>
+                    </div>
+                  )
+                }
+                return (
+                  <p className="text-[11px] text-muted-foreground">
+                    Refresh token valid for <strong>{daysLeft} days</strong>
+                  </p>
+                )
+              })()}
+            </>
           )}
 
           <div className="flex gap-3">
@@ -319,12 +349,117 @@ function XeroSettings({ firm, setFirm }: { firm: Firm | null; setFirm?: (f: Firm
 
 function ProfileSettings({ firm }: { firm: Firm | null }) {
   const [showPwd, setShowPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [changingPwd, setChangingPwd] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
-    firmName: firm?.name || '',
+    position: '',
+    language: 'en',
+    avatarUrl: '',
   });
+  const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
+
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then(data => {
+        setProfile({
+          fullName: data.full_name || '',
+          email: data.email || '',
+          position: data.position || '',
+          language: data.language || 'en',
+          avatarUrl: data.avatar_url || '',
+        });
+      })
+      .catch(() => toast.error('Failed to load profile'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: profile.fullName,
+          position: profile.position,
+          language: profile.language,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      toast.success('Profile updated');
+    } catch {
+      toast.error('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Only JPG, PNG, or WebP files allowed');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File must be under 2 MB');
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/profile/avatar', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setProfile(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+      toast.success('Avatar updated');
+    } catch {
+      toast.error('Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (pwdForm.next.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (pwdForm.next !== pwdForm.confirm) { toast.error('Passwords do not match'); return; }
+    setChangingPwd(true);
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwdForm.current, newPassword: pwdForm.next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to change password');
+      toast.success('Password updated');
+      setPwdForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to change password');
+    } finally {
+      setChangingPwd(false);
+    }
+  };
+
+  const initials = profile.fullName.trim()
+    ? profile.fullName.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : profile.email.slice(0, 2).toUpperCase();
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl">
+        <div className="skeleton h-48 rounded-xl w-full mb-4" />
+        <div className="skeleton h-40 rounded-xl w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -334,50 +469,89 @@ function ProfileSettings({ firm }: { firm: Firm | null }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4 mb-5">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl bg-emerald-600">
-              {profile.firstName[0]}{profile.lastName[0]}
+            <div className="relative group w-16 h-16 shrink-0">
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt="Avatar"
+                  className="w-16 h-16 rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl bg-emerald-600">
+                  {initials}
+                </div>
+              )}
+              {uploadingAvatar && (
+                <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                </div>
+              )}
             </div>
-            <Button variant="outline" size="sm">
-              <Upload className="h-4 w-4 mr-2" /> Change Photo
-            </Button>
+            <div>
+              <label className="cursor-pointer">
+                <Button variant="outline" size="sm" asChild>
+                  <span>
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingAvatar ? 'Uploading...' : 'Change Photo'}
+                  </span>
+                </Button>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={handleAvatarUpload}
+                  disabled={uploadingAvatar}
+                />
+              </label>
+              <p className="text-[10px] text-muted-foreground mt-1">JPG, PNG or WebP · max 2 MB</p>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
+              <Label htmlFor="fullName">Full Name</Label>
               <Input
-                id="firstName"
-                value={profile.firstName}
-                onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                id="fullName"
+                value={profile.fullName}
+                onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
+                placeholder="Your full name"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                value={profile.lastName}
-                onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
                 value={profile.email}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                readOnly
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+              <p className="text-[10px] text-muted-foreground">Email is managed by your authentication provider and cannot be changed here.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="position">Job Title / Position</Label>
+              <Input
+                id="position"
+                value={profile.position}
+                onChange={(e) => setProfile({ ...profile, position: e.target.value })}
+                placeholder="e.g. Senior Accountant"
               />
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="firmName">Firm Name</Label>
-              <Input
-                id="firmName"
-                value={profile.firmName}
-                onChange={(e) => setProfile({ ...profile, firmName: e.target.value })}
-              />
-              <p className="text-[10px] text-muted-foreground">Max 100 characters. Allowed: letters, numbers, spaces, & ' - .</p>
+            <div className="space-y-2">
+              <Label htmlFor="language">Language Preference</Label>
+              <Select value={profile.language} onValueChange={val => setProfile({ ...profile, language: val })}>
+                <SelectTrigger id="language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="zh">简体中文</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <Button onClick={() => toast.success('Profile updated')} className="shrink-0">Save Changes</Button>
+          <Button onClick={handleSaveProfile} disabled={saving} className="shrink-0">
+            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
+          </Button>
         </CardContent>
       </Card>
 
@@ -392,6 +566,8 @@ function ProfileSettings({ firm }: { firm: Firm | null }) {
               <Input
                 id="currentPwd"
                 type={showPwd ? 'text' : 'password'}
+                value={pwdForm.current}
+                onChange={e => setPwdForm({ ...pwdForm, current: e.target.value })}
                 className="pr-10"
               />
               <button
@@ -405,65 +581,179 @@ function ProfileSettings({ firm }: { firm: Firm | null }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="newPwd">New Password</Label>
-            <Input id="newPwd" type="password" />
+            <div className="relative">
+              <Input
+                id="newPwd"
+                type={showNewPwd ? 'text' : 'password'}
+                value={pwdForm.next}
+                onChange={e => setPwdForm({ ...pwdForm, next: e.target.value })}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPwd(!showNewPwd)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              >
+                {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             <p className="text-[10px] text-muted-foreground">Min 8 characters · 1 uppercase · 1 lowercase · 1 number</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPwd">Confirm New Password</Label>
-            <Input id="confirmPwd" type="password" />
+            <Input
+              id="confirmPwd"
+              type="password"
+              value={pwdForm.confirm}
+              onChange={e => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+            />
           </div>
-          <Button onClick={() => toast.success('Password changed')} className="shrink-0">Update Password</Button>
+          <Button onClick={handleChangePassword} disabled={changingPwd || !pwdForm.current || !pwdForm.next} className="shrink-0">
+            {changingPwd ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Updating...</> : 'Update Password'}
+          </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function BillingSettings({ subscription, clientCount = 0 }: { subscription?: any; clientCount?: number }) {
-  const currentPlan = (subscription?.plan || 'Professional').toLowerCase();
+const PLAN_MONTHLY_COST: Record<string, string> = {
+  starter: '£29.00',
+  professional: '£69.00',
+  firm: '£149.00',
+};
+
+const PLAN_SLUGS: Record<string, string> = {
+  starter: 'starter',
+  professional: 'professional',
+  firm: 'firm',
+};
+
+interface Invoice {
+  id: string;
+  date: string;
+  amount: number;
+  currency: string;
+  pdfUrl: string | null;
+  hostedUrl: string | null;
+}
+
+function BillingSettings({ subscription, clientCount = 0 }: { subscription?: Subscription; clientCount?: number }) {
+  const currentPlan = (subscription?.plan || 'trial').toLowerCase();
   const capitalizedPlan = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
   const isTrial = currentPlan === 'trial';
-  
-  // Use real limit if available, fallback to plan defaults
+  const isCanceled = subscription?.status === 'canceled';
+  const hasStripeCustomer = !!subscription?.stripe_customer_id;
+
   let limit = subscription?.client_limit || 100;
   if (currentPlan === 'firm') limit = 9999;
-  
   const percentage = Math.min(100, Math.round((clientCount / limit) * 100)) || 0;
 
+  const nextBilling = subscription?.current_period_end
+    ? new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : isTrial ? 'Trial period' : '—';
+
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  useEffect(() => {
+    if (!hasStripeCustomer) return;
+    setLoadingInvoices(true);
+    fetch('/api/stripe/invoices')
+      .then((r) => r.json())
+      .then((d) => setInvoices(d.data || []))
+      .catch(() => {})
+      .finally(() => setLoadingInvoices(false));
+  }, [hasStripeCustomer]);
+
+  const handleUpgrade = async (planSlug: string) => {
+    setCheckingOut(planSlug);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planSlug }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || 'Failed to start checkout');
+      }
+    } catch {
+      toast.error('Failed to start checkout');
+    } finally {
+      setCheckingOut(null);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setOpeningPortal(true);
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || 'Failed to open billing portal');
+      }
+    } catch {
+      toast.error('Failed to open billing portal');
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
+
   const plans = [
-    { 
-      name: 'Starter', 
-      price: '£29', 
-      clients: 20, 
-      features: ['Client Portal', 'Xero Direct Sync', 'Automated Email Reminders'] 
+    {
+      name: 'Starter',
+      slug: 'starter',
+      price: '£29',
+      clients: 20,
+      features: ['Client Portal', 'Xero Direct Sync', 'Automated Email Reminders'],
     },
-    { 
-      name: 'Professional', 
-      price: '£69', 
-      clients: 100, 
-      features: ['All Starter features', 'Magic Email (Pro)', 'Document Checklist (Pro)', 'Client Activity (Pro)', 'Brand Customization (Pro)'] 
+    {
+      name: 'Professional',
+      slug: 'professional',
+      price: '£69',
+      clients: 100,
+      features: ['All Starter features', 'Magic Email', 'Document Checklist', 'Client Activity', 'Brand Customization'],
     },
-    { 
-      name: 'Firm', 
-      price: '£149', 
-      clients: 'Unlimited', 
-      features: ['All Professional features', 'Custom Domain (未来上线)', 'Team Members (未来上线)', 'API Access (未来上线)'] 
+    {
+      name: 'Firm',
+      slug: 'firm',
+      price: '£149',
+      clients: 'Unlimited',
+      features: ['All Professional features', 'Custom Domain (coming)', 'Team Members (coming)', 'API Access (coming)'],
     },
   ];
 
+  const planRank: Record<string, number> = { starter: 0, professional: 1, firm: 2 };
+  const currentRank = planRank[currentPlan] ?? 1;
+
   return (
     <div className="max-w-3xl space-y-5">
+      {/* Current Plan Card */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Current Plan</CardTitle>
-            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">
-              {isTrial ? 'Trial (Pro Features)' : capitalizedPlan} · {subscription?.status === 'canceled' ? 'Canceled' : 'Active'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full ${isCanceled ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                {isTrial ? 'Trial (Pro Features)' : capitalizedPlan} · {isCanceled ? 'Canceled' : 'Active'}
+              </span>
+              {hasStripeCustomer && (
+                <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={openingPortal}>
+                  {openingPortal ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Manage Billing'}
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Clients Used</p>
               <p className="text-xl font-bold tabular-nums">
@@ -471,55 +761,124 @@ function BillingSettings({ subscription, clientCount = 0 }: { subscription?: any
               </p>
               {currentPlan !== 'firm' && (
                 <div className="w-full h-1.5 rounded-full bg-muted mt-2 overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-600 transition-all duration-500" style={{ width: `${percentage}%` }} />
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${percentage >= 90 ? 'bg-red-500' : percentage >= 70 ? 'bg-amber-500' : 'bg-emerald-600'}`}
+                    style={{ width: `${percentage}%` }}
+                  />
                 </div>
               )}
             </div>
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Next Billing</p>
-              <p className="text-xl font-bold">{isTrial ? 'Trial End' : '01 May 2026'}</p>
+              <p className="text-xl font-bold">{nextBilling}</p>
             </div>
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Monthly Cost</p>
               <p className="text-xl font-bold tabular-nums">
-                {isTrial ? '£0.00' : (currentPlan === 'starter' ? '£29.00' : currentPlan === 'firm' ? '£149.00' : '£69.00')}
+                {isTrial ? '£0.00' : (PLAN_MONTHLY_COST[currentPlan] ?? '—')}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-4">
+      {/* Plan Comparison */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {plans.map((p) => {
-          const isCurrent = p.name.toLowerCase() === currentPlan || (isTrial && p.name === 'Professional');
+          const isCurrent = p.slug === currentPlan || (isTrial && p.slug === 'professional');
+          const targetRank = planRank[p.slug] ?? 1;
+          const isDowngrade = targetRank < currentRank;
+          const isLoading = checkingOut === p.slug;
+
           return (
-          <Card key={p.name} className={isCurrent ? 'ring-2 ring-emerald-500' : ''}>
-            <CardHeader>
-              {isCurrent && (
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mb-2">Current Plan</span>
-              )}
-              <CardTitle className="text-base">{p.name}</CardTitle>
-              <p className="text-2xl font-bold">
-                {p.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
-              </p>
-              <p className="text-xs text-muted-foreground">Up to {p.clients} clients</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1.5 mb-4">
-                {p.features.map((f) => (
-                  <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {f}
+            <Card key={p.name} className={isCurrent ? 'ring-2 ring-emerald-500' : ''}>
+              <CardHeader className="pb-3">
+                {isCurrent && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mb-2 w-fit">
+                    Current Plan
+                  </span>
+                )}
+                <CardTitle className="text-base">{p.name}</CardTitle>
+                <p className="text-2xl font-bold">
+                  {p.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                </p>
+                <p className="text-xs text-muted-foreground">Up to {p.clients} clients</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5 mb-4">
+                  {p.features.map((f) => (
+                    <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-600" /> {f}
+                    </div>
+                  ))}
+                </div>
+                {!isCurrent && (
+                  <Button
+                    variant={isDowngrade ? 'outline' : 'default'}
+                    className="w-full"
+                    size="sm"
+                    disabled={isLoading}
+                    onClick={() => handleUpgrade(PLAN_SLUGS[p.slug])}
+                  >
+                    {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : isDowngrade ? 'Downgrade' : 'Upgrade'}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Invoice History */}
+      {hasStripeCustomer && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Invoice History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingInvoices ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading invoices…
+              </div>
+            ) : invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No invoices yet.</p>
+            ) : (
+              <div className="divide-y">
+                {invoices.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between py-2.5 text-sm">
+                    <span className="text-muted-foreground">
+                      {new Date(inv.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {inv.currency} {inv.amount.toFixed(2)}
+                    </span>
+                    {inv.pdfUrl && (
+                      <a
+                        href={inv.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-emerald-700 hover:underline"
+                      >
+                        PDF
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
-              {!isCurrent && (
-                <Button variant={p.name === 'Starter' ? 'outline' : 'default'} className="w-full" size="sm">
-                  {currentPlan === 'firm' || (currentPlan === 'professional' && p.name === 'Starter') ? 'Downgrade' : 'Upgrade'}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )})}
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* GDPR Data Deletion */}
+      <div className="border-t pt-4">
+        <p className="text-xs text-muted-foreground">
+          Need to delete your account and data?{' '}
+          <a href="mailto:privacy@filio.uk?subject=Data Deletion Request" className="text-red-600 hover:underline">
+            Request data deletion
+          </a>
+          {' '}— we will process your request within 30 days in accordance with GDPR.
+        </p>
       </div>
     </div>
   );
@@ -527,12 +886,68 @@ function BillingSettings({ subscription, clientCount = 0 }: { subscription?: any
 
 function BrandingSettings({ firm, plan = 'Professional' }: { firm: Firm | null; plan?: string }) {
   const [brandColor, setBrandColor] = useState(firm?.brand_color || '#064E3B');
-  const [welcomeMessage, setWelcomeMessage] = useState(
-    'Welcome! Please upload your documents using the button below. If you have any questions, don\'t hesitate to contact us.'
-  );
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const isStarter = plan.toLowerCase() === 'starter';
   const isFirm = plan.toLowerCase() === 'firm';
+
+  useEffect(() => {
+    if (isStarter) { setLoading(false); return; }
+    fetch('/api/firm/branding')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) {
+          setBrandColor(data.brand_color || '#064E3B');
+          setLogoUrl(data.logo_url || null);
+          setWelcomeMessage(data.portal_welcome_message || 'Welcome! Please upload your documents using the button below.');
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [isStarter]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/firm/logo', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setLogoUrl(data.url);
+      toast.success('Logo uploaded');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/firm/branding', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_color: brandColor,
+          portal_welcome_message: welcomeMessage,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Branding saved');
+    } catch {
+      toast.error('Failed to save branding');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (isStarter) {
     return (
@@ -541,115 +956,239 @@ function BrandingSettings({ firm, plan = 'Professional' }: { firm: Firm | null; 
           <Building2 className="h-6 w-6 text-emerald-600" />
         </div>
         <h3 className="text-lg font-bold text-foreground mb-2">Available on Professional</h3>
-        <p className="text-sm text-muted-foreground mb-6 max-w-sm">Upgrade your plan to customize the portal with your firm's brand colors and custom welcome message.</p>
+        <p className="text-sm text-muted-foreground mb-6 max-w-sm">Upgrade your plan to customize the portal with your firm&apos;s brand colors and welcome message.</p>
         <Button>Upgrade to Professional</Button>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-2xl space-y-5">
-      <Card>
-        <CardHeader>
-          <CardTitle>Firm Branding</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Firm Logo</Label>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-6 text-center hover:border-emerald-300 transition-all cursor-pointer">
-              <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Drop logo here or <span className="text-emerald-600">browse</span></p>
-              <p className="text-xs text-muted-foreground mt-1">PNG or SVG · Max 2MB · Recommended 200×60px</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="brandColor">Portal Header Colour</Label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                id="brandColor"
-                value={brandColor}
-                onChange={(e) => setBrandColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-input cursor-pointer"
-              />
-              <Input
-                value={brandColor}
-                onChange={(e) => setBrandColor(e.target.value)}
-                className="font-mono"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="welcomeMsg">Portal Welcome Message</Label>
-            <textarea
-              id="welcomeMsg"
-              value={welcomeMessage}
-              onChange={(e) => setWelcomeMessage(e.target.value)}
-              rows={3}
-              className="w-full text-sm px-3 py-2 rounded-lg border border-input focus:outline-none focus:border-emerald-400 transition-all resize-none"
-            />
-            <p className="text-[10px] text-muted-foreground">Supports HTML rich text · Max 500 characters</p>
-          </div>
-          <Button onClick={() => toast.success('Branding saved')} className="shrink-0">Save Branding</Button>
-        </CardContent>
-      </Card>
+  if (loading) {
+    return (
+      <div className="max-w-2xl">
+        <div className="skeleton h-64 rounded-xl w-full" />
+      </div>
+    );
+  }
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Custom Domain</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs text-muted-foreground mb-3">
-            Use your own domain for the client portal, e.g. <span className="font-mono">portal.yourfirm.co.uk</span>
-          </p>
-          {isFirm ? (
-            <Button variant="outline" size="sm">Configure Domain</Button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => toast.info('Upgrade to Firm plan to unlock custom domain')}>
-              Upgrade to Enable
+  return (
+    <div className="flex gap-6 items-start">
+      <div className="flex-1 space-y-5 min-w-0">
+        <Card>
+          <CardHeader>
+            <CardTitle>Firm Branding</CardTitle>
+            <CardDescription>Customise the client portal with your firm&apos;s identity.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Firm Logo</Label>
+              {logoUrl ? (
+                <div className="flex items-center gap-3">
+                  <img src={logoUrl} alt="Firm logo" className="h-10 object-contain rounded border border-gray-100 px-2" />
+                  <label className="cursor-pointer">
+                    <Button variant="outline" size="sm" asChild>
+                      <span><Upload className="h-3.5 w-3.5 mr-1.5" /> Replace</span>
+                    </Button>
+                    <input type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" className="sr-only" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                  </label>
+                </div>
+              ) : (
+                <label className="cursor-pointer block">
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-6 text-center hover:border-emerald-300 transition-all">
+                    {uploadingLogo ? (
+                      <Loader2 className="h-6 w-6 mx-auto mb-2 text-emerald-500 animate-spin" />
+                    ) : (
+                      <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                    )}
+                    <p className="text-sm text-muted-foreground">Drop logo here or <span className="text-emerald-600">browse</span></p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG, SVG, or JPG · Max 2MB · Recommended 200×60px</p>
+                  </div>
+                  <input type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" className="sr-only" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                </label>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brandColor">Portal Header Colour</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  id="brandColor"
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-input cursor-pointer"
+                />
+                <Input
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="font-mono max-w-[140px]"
+                  placeholder="#064E3B"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="welcomeMsg">Portal Welcome Message</Label>
+              <textarea
+                id="welcomeMsg"
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                maxLength={500}
+                rows={3}
+                className="w-full text-sm px-3 py-2 rounded-lg border border-input focus:outline-none focus:border-emerald-400 transition-all resize-none"
+              />
+              <p className="text-[10px] text-muted-foreground">{welcomeMessage.length}/500 characters</p>
+            </div>
+            <Button onClick={handleSave} disabled={saving} className="shrink-0">
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Branding'}
             </Button>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Custom Domain</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Use your own domain for the client portal, e.g. <span className="font-mono">portal.yourfirm.co.uk</span>
+            </p>
+            {isFirm ? (
+              <Button variant="outline" size="sm">Configure Domain</Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => toast.info('Upgrade to Firm plan to unlock custom domain')}>
+                Upgrade to Enable
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Live Preview Panel */}
+      <div className="w-72 shrink-0 sticky top-6">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Portal Preview</p>
+        <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm text-xs">
+          <div className="px-4 py-3 flex items-center gap-2" style={{ background: brandColor }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt="logo" className="h-6 object-contain" />
+            ) : (
+              <div className="w-6 h-6 rounded bg-white/20 flex items-center justify-center text-white font-bold text-[10px]">F</div>
+            )}
+            <span className="text-white font-semibold text-[11px]">{firm?.name || 'Your Firm'}</span>
+          </div>
+          <div className="p-4 bg-gray-50">
+            <div className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm space-y-2">
+              <p className="font-semibold text-gray-800 text-[11px]">Document Portal</p>
+              <p className="text-gray-500 text-[10px] leading-relaxed line-clamp-3">{welcomeMessage || 'Welcome message will appear here.'}</p>
+              <div className="mt-2 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-semibold" style={{ background: brandColor }}>
+                Upload Documents
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
+type NotifPrefs = {
+  notify_daily_digest: boolean
+  notify_sync_failure: boolean
+  notify_client_overdue: boolean
+  notify_quota_warning: boolean
+  notify_auto_dormant: boolean
+  notify_dormant_reminder: boolean
+  notify_upload_attempt: boolean
+  notify_weekly_report: boolean
+}
+
+const DEFAULT_NOTIF_PREFS: NotifPrefs = {
+  notify_daily_digest: true,
+  notify_sync_failure: true,
+  notify_client_overdue: true,
+  notify_quota_warning: true,
+  notify_auto_dormant: true,
+  notify_dormant_reminder: true,
+  notify_upload_attempt: false,
+  notify_weekly_report: false,
+}
+
 function NotificationsSettings() {
-  const [settings, setSettings] = useState({
-    newUpload: true,
-    syncFailed: true,
-    tokenExpiry: true,
-    weeklyDigest: false,
-    trialReminder: true,
-  });
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const toggle = (key: keyof typeof settings) =>
-    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  useEffect(() => {
+    fetch('/api/firm/notification-prefs')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) setPrefs({ ...DEFAULT_NOTIF_PREFS, ...data });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  const items = [
-    { key: 'newUpload' as const, label: 'New file uploaded', desc: 'Notify when a client uploads a file via Portal or Magic Email' },
-    { key: 'syncFailed' as const, label: 'Xero sync failed', desc: 'Alert when a file fails to sync to Xero' },
-    { key: 'tokenExpiry' as const, label: 'Upload link expiring', desc: 'Warn when a client upload link is about to expire' },
-    { key: 'weeklyDigest' as const, label: 'Weekly digest', desc: 'Summary of all activity from the past week' },
-    { key: 'trialReminder' as const, label: 'Trial & billing alerts', desc: 'Reminders about trial expiry and billing events' },
+  const toggle = (key: keyof NotifPrefs) =>
+    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/firm/notification-prefs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefs),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Notification preferences saved');
+    } catch {
+      toast.error('Failed to save preferences');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const items: { key: keyof NotifPrefs; label: string; desc: string; tag?: string }[] = [
+    { key: 'notify_daily_digest', label: 'Daily digest', desc: 'Daily summary of client activity, uploads, and pending actions' },
+    { key: 'notify_sync_failure', label: 'Xero sync failed', desc: 'Alert when a file fails to sync to Xero' },
+    { key: 'notify_client_overdue', label: 'Client overdue', desc: 'Notify when a client becomes overdue on their filing deadline' },
+    { key: 'notify_quota_warning', label: 'Storage quota at 80%', desc: 'Warn when your account reaches 80% of its client or storage limit' },
+    { key: 'notify_auto_dormant', label: 'Client set to Dormant', desc: 'Notify when a client is automatically moved to Dormant status' },
+    { key: 'notify_dormant_reminder', label: 'Dormant client reminder', desc: 'Remind when a dormant client has had no activity for 90+ days' },
+    { key: 'notify_upload_attempt', label: 'Upload attempt from client', desc: 'Notify on every file upload attempt including failed ones' },
+    { key: 'notify_weekly_report', label: 'Weekly summary report', desc: 'Weekly overview of uploads, deadlines, and Xero sync status', tag: 'V3' },
   ];
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl">
+        <div className="skeleton h-64 rounded-xl w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl">
       <Card>
         <CardHeader>
           <CardTitle>Email Notifications</CardTitle>
+          <CardDescription>Choose which events trigger email alerts to your inbox.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-1">
           {items.map((item) => (
             <div key={item.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-              <div>
-                <p className="text-sm font-medium">{item.label}</p>
+              <div className="flex-1 pr-4">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  {item.label}
+                  {item.tag && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{item.tag}</span>
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
               </div>
-              <button onClick={() => toggle(item.key)}>
-                {settings[item.key] ? (
+              <button
+                onClick={() => toggle(item.key)}
+                className="shrink-0"
+                aria-label={`Toggle ${item.label}`}
+              >
+                {prefs[item.key] ? (
                   <ToggleRight className="h-6 w-6 text-emerald-600" />
                 ) : (
                   <ToggleLeft className="h-6 w-6 text-muted-foreground" />
@@ -657,7 +1196,11 @@ function NotificationsSettings() {
               </button>
             </div>
           ))}
-          <Button onClick={() => toast.success('Notification preferences saved')} className="shrink-0">Save Preferences</Button>
+          <div className="pt-4">
+            <Button onClick={handleSave} disabled={saving} className="shrink-0">
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Preferences'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

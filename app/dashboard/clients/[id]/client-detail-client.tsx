@@ -7,7 +7,7 @@ import {
   ArrowLeft, Star, Send, ExternalLink, Upload, FileText,
   Bell, Settings, Shield, CheckCircle2, Clock, AlertCircle,
   Mail, Copy, RefreshCw, Trash2, ChevronRight, Plus,
-  ToggleLeft, ToggleRight, Download, MoreHorizontal, AlertTriangle
+  ToggleLeft, ToggleRight, Download, MoreHorizontal, AlertTriangle, X, Info
 } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { toast } from 'sonner'
@@ -152,6 +152,11 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
   const [saving, setSaving] = useState(false)
   const [regeneratingToken, setRegeneratingToken] = useState(false)
   const [regeneratingMagicEmail, setRegeneratingMagicEmail] = useState(false)
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false)
+  const [isDormant, setIsDormant] = useState((client as any).management_status === 'dormant')
+  const [settingStatus, setSettingStatus] = useState(false)
+  const [deletingClient, setDeletingClient] = useState(false)
+  const [dismissedBanners, setDismissedBanners] = useState<string[]>([])
   // Confirm dialog state
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -181,9 +186,6 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
       setFinancialYearDay('')
     }
   }, [financialYearMonth, availableDays, financialYearDay])
-
-  // Debug: log short links data
-  console.log('Client short_links:', shortLinksData, 'shortCode:', shortCode, 'portalUrl:', portalUrl)
 
   const handleRegenerateToken = async () => {
     setRegeneratingToken(true)
@@ -241,14 +243,65 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
     setConfirmOpen(true)
   }
 
+  const handleSetDormantActive = async () => {
+    setShowOverflowMenu(false)
+    const newStatus = isDormant ? 'active' : 'dormant'
+    setSettingStatus(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ management_status: newStatus }),
+      })
+      if (res.ok) {
+        setIsDormant(!isDormant)
+        toast.success(`Client marked as ${newStatus}`)
+      } else {
+        toast.error('Failed to update status')
+      }
+    } catch {
+      toast.error('Failed to update status')
+    } finally {
+      setSettingStatus(false)
+    }
+  }
+
+  const openDeleteConfirm = () => {
+    setShowOverflowMenu(false)
+    setConfirmConfig({
+      title: 'Delete Client?',
+      description: `This will permanently remove ${client.name} and all associated data. This action cannot be undone.`,
+      confirmLabel: 'Delete Client',
+      onConfirm: handleDeleteClient,
+    })
+    setConfirmOpen(true)
+  }
+
+  const handleDeleteClient = async () => {
+    setDeletingClient(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Client deleted')
+        router.push('/dashboard/clients')
+      } else {
+        toast.error('Failed to delete client')
+        setConfirmOpen(false)
+      }
+    } catch {
+      toast.error('Failed to delete client')
+      setConfirmOpen(false)
+    } finally {
+      setDeletingClient(false)
+    }
+  }
+
   const handleSaveSettings = async () => {
     // Construct financial year end from month and day
     const financialYearEnd = financialYearMonth && financialYearDay
       ? `${financialYearMonth} ${financialYearDay}`
       : financialYearMonth || null
 
-    console.log('Save clicked, clientId:', clientId)
-    console.log('VAT group:', vatQuarterGroup, 'FY end:', financialYearEnd)
     setSaving(true)
     try {
       const response = await fetch(`/api/clients/${clientId}/settings`, {
@@ -262,7 +315,6 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
           portal_language: portalLanguage,
         }),
       })
-      console.log('Response status:', response.status)
       if (response.ok) {
         toast.success('Client settings saved. Reloading...')
         // Use timeout to allow toast to show before reload
@@ -270,12 +322,9 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
           window.location.reload()
         }, 500)
       } else {
-        const errorText = await response.text()
-        console.error('Error response:', errorText)
         toast.error('Failed to save settings')
       }
-    } catch (error) {
-      console.error('Fetch error:', error)
+    } catch {
       toast.error('Failed to save settings')
     } finally {
       setSaving(false)
@@ -298,14 +347,6 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
 
   const deadlineDays = client.next_deadline ?
     Math.ceil((new Date(client.next_deadline.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
-
-  // Debug logging
-  console.log('Overview render:', {
-    clientId: client.id,
-    nextDeadline: client.next_deadline,
-    deadlineDays,
-    requestsCount: client.requests?.length || 0
-  })
 
   const formatDays = (days: number) => {
     if (days < 0) return `${Math.abs(days)} days overdue`
@@ -340,74 +381,213 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
           </Link>
 
         {/* Client Header Card */}
-        <div className="filio-card p-5 flex items-center gap-5">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-            style={{ background: '#059669' }}
-          >
-            {client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h2 className="text-lg font-bold text-gray-900">{client.name}</h2>
-              <StatusBadge status={(client.health_status as ClientStatus) || 'Not Started'} />
+        <div className="filio-card p-5">
+          <div className="flex flex-wrap items-center gap-4 lg:gap-5">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0"
+              style={{ background: '#059669' }}
+            >
+              {client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-lg font-bold text-gray-900">{client.name}</h2>
+                {isDormant
+                  ? <span className="status-badge" style={{ background: '#F3F4F6', color: '#6B7280' }}><span className="w-1.5 h-1.5 rounded-full bg-gray-400" />Dormant</span>
+                  : <StatusBadge status={(client.health_status as ClientStatus) || 'Not Started'} />
+                }
+                <button
+                  onClick={async () => {
+                    const newStarred = !starred
+                    setStarred(newStarred)
+                    try {
+                      const res = await fetch(`/api/clients/${clientId}/star`, { method: 'POST' })
+                      if (!res.ok) throw new Error()
+                    } catch {
+                      setStarred(!newStarred)
+                      toast.error('Failed to update star')
+                    }
+                  }}
+                >
+                  <Star size={18} fill={starred ? '#D97706' : 'none'} style={{ color: starred ? '#D97706' : '#D1D5DB' }} />
+                </button>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {client.email && (
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm text-gray-500">{client.email}</p>
+                    {client.xero_contact_id && (
+                      <XeroIcon size={13} className="shrink-0 opacity-80" tooltip={t('clientDetail.xeroImported')} />
+                    )}
+                  </div>
+                )}
+                {(client as any).xero_phone && (
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm text-gray-500">{(client as any).xero_phone}</p>
+                    {client.xero_contact_id && (
+                      <XeroIcon size={13} className="shrink-0 opacity-80" tooltip={t('clientDetail.xeroImported')} />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="hidden sm:flex gap-6 text-center shrink-0">
+              <div>
+                <p className="text-2xl font-bold text-gray-900 tabular-nums">
+                  {client.upload_progress?.uploaded || 0}/{client.upload_progress?.required || 5}
+                </p>
+                <p className="text-xs text-gray-400">Files uploaded</p>
+              </div>
+              <div className="w-px bg-gray-100" />
+              <div>
+                <p className="text-2xl font-bold text-gray-900 tabular-nums">{realUploads.length}</p>
+                <p className="text-xs text-gray-400">Total uploads</p>
+              </div>
+              <div className="w-px bg-gray-100" />
+              <div>
+                <p className={`text-2xl font-bold tabular-nums ${deadlineDays < 0 ? 'text-red-600' : deadlineDays <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
+                  {deadlineDays < 0 ? Math.abs(deadlineDays) + 'd' : deadlineDays + 'd'}
+                </p>
+                <p className="text-xs text-gray-400">{deadlineDays < 0 ? 'Overdue' : 'Until deadline'}</p>
+              </div>
+            </div>
+
+            {/* Action buttons: 2 primary + ⋯ overflow */}
+            <div className="flex items-center gap-2 shrink-0 lg:border-l border-gray-100 lg:pl-5 lg:ml-1 w-full lg:w-auto justify-end lg:justify-start">
               <button
-                onClick={async () => {
-                  const newStarred = !starred
-                  setStarred(newStarred)
-                  try {
-                    const res = await fetch(`/api/clients/${clientId}/star`, { method: 'POST' })
-                    if (!res.ok) throw new Error()
-                  } catch {
-                    setStarred(!newStarred)
-                    toast.error('Failed to update star')
-                  }
+                onClick={() => {
+                  setActiveTab('reminders')
+                  toast.success(`Reminder sent to ${client.name}`)
                 }}
+                className="btn-primary text-xs"
               >
-                <Star size={18} fill={starred ? '#D97706' : 'none'} style={{ color: starred ? '#D97706' : '#D1D5DB' }} />
+                <Send size={13} /> Send Reminder
               </button>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {client.email && (
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm text-gray-500">{client.email}</p>
-                  {client.xero_contact_id && (
-                    <XeroIcon size={13} className="shrink-0 opacity-80" tooltip={t('clientDetail.xeroImported')} />
-                  )}
-                </div>
+              {portalUrl ? (
+                <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs">
+                  <ExternalLink size={13} /> View Portal
+                </a>
+              ) : (
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className="btn-secondary text-xs"
+                >
+                  <ExternalLink size={13} /> Set up Portal
+                </button>
               )}
-              {(client as any).xero_phone && (
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm text-gray-500">{(client as any).xero_phone}</p>
-                  {client.xero_contact_id && (
-                    <XeroIcon size={13} className="shrink-0 opacity-80" tooltip={t('clientDetail.xeroImported')} />
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-6 text-center">
-            <div>
-              <p className="text-2xl font-bold text-gray-900 tabular-nums">
-                {client.upload_progress?.uploaded || 0}/{client.upload_progress?.required || 5}
-              </p>
-              <p className="text-xs text-gray-400">Files uploaded</p>
-            </div>
-            <div className="w-px bg-gray-100" />
-            <div>
-              <p className="text-2xl font-bold text-gray-900 tabular-nums">0</p>
-              <p className="text-xs text-gray-400">Total uploads</p>
-            </div>
-            <div className="w-px bg-gray-100" />
-            <div>
-              <p className={`text-2xl font-bold tabular-nums ${deadlineDays < 0 ? 'text-red-600' : deadlineDays <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
-                {deadlineDays < 0 ? Math.abs(deadlineDays) + 'd' : deadlineDays + 'd'}
-              </p>
-              <p className="text-xs text-gray-400">{deadlineDays < 0 ? 'Overdue' : 'Until deadline'}</p>
+              {/* ⋯ overflow menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowOverflowMenu(v => !v)}
+                  className="btn-secondary text-xs px-2 py-2"
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+                {showOverflowMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowOverflowMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setShowOverflowMenu(false)
+                          toast.success(`Magic link sent to ${client.email || client.name}`)
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Mail size={14} className="text-gray-400" /> Send Magic Link
+                      </button>
+                      <button
+                        onClick={() => { setShowOverflowMenu(false); openRegenerateTokenConfirm() }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <RefreshCw size={14} className="text-gray-400" /> Regenerate Portal Link
+                      </button>
+                      <button
+                        onClick={() => { setShowOverflowMenu(false); openRegenerateMagicEmailConfirm() }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <RefreshCw size={14} className="text-gray-400" /> Regenerate Magic Email
+                      </button>
+                      <div className="h-px bg-gray-100 my-1" />
+                      <button
+                        onClick={handleSetDormantActive}
+                        disabled={settingStatus}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      >
+                        {isDormant
+                          ? <><ToggleLeft size={14} className="text-gray-400" /> Set as Active</>
+                          : <><ToggleRight size={14} className="text-emerald-500" /> Set as Dormant</>
+                        }
+                      </button>
+                      <div className="h-px bg-gray-100 my-1" />
+                      <button
+                        onClick={openDeleteConfirm}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={14} /> Delete Client
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Priority banners (D-05): max 1 shown, rest collapsed */}
+      {(() => {
+        const failedUploads = realUploads.filter((u: any) => u.xero_status === 'failed' || u.xero_status === 'error')
+        const allBanners = [
+          // Priority: xero_not_found > overdue > xero_failed > no_portal
+          ...((client as any).xero_not_found ? [{
+            id: 'xero_not_found',
+            type: 'error' as const,
+            message: 'This Xero contact can no longer be found. Uploads will fail until the contact is re-linked.',
+          }] : []),
+          ...(client.health_status === 'Overdue' ? [{
+            id: 'overdue',
+            type: 'error' as const,
+            message: `This client is overdue. Send a reminder or update the deadline.`,
+          }] : []),
+          ...(failedUploads.length > 0 ? [{
+            id: 'xero_failed',
+            type: 'warning' as const,
+            message: `${failedUploads.length} document${failedUploads.length > 1 ? 's' : ''} failed to sync to Xero. Retry in the Documents tab.`,
+          }] : []),
+          ...(!shortCode ? [{
+            id: 'no_portal',
+            type: 'info' as const,
+            message: 'No portal link configured. Set up portal access in Settings.',
+          }] : []),
+        ].filter(b => !dismissedBanners.includes(b.id))
+
+        if (allBanners.length === 0) return null
+        const [primary, ...rest] = allBanners
+        const bannerStyle: Record<string, { bg: string; border: string; icon: string; text: string }> = {
+          error: { bg: '#FEF2F2', border: '#FECACA', icon: '#DC2626', text: '#991B1B' },
+          warning: { bg: '#FFFBEB', border: '#FDE68A', icon: '#D97706', text: '#92400E' },
+          info: { bg: '#EFF6FF', border: '#BFDBFE', icon: '#2563EB', text: '#1E40AF' },
+        }
+        const s = bannerStyle[primary.type]
+        return (
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border text-sm" style={{ background: s.bg, borderColor: s.border }}>
+              <AlertCircle size={15} style={{ color: s.icon }} className="shrink-0" />
+              <span className="flex-1 text-xs font-medium" style={{ color: s.text }}>{primary.message}</span>
+              <button onClick={() => setDismissedBanners(d => [...d, primary.id])} className="shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+                <X size={14} style={{ color: s.text }} />
+              </button>
+            </div>
+            {rest.length > 0 && (
+              <p className="text-xs text-gray-400 pl-1">
+                +{rest.length} more alert{rest.length > 1 ? 's' : ''} — dismiss the above to reveal
+              </p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 border-b border-gray-200">
@@ -428,7 +608,7 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Left: Deadline & Progress */}
           <div className="col-span-2 space-y-5">
             {/* Deadline Card */}
@@ -604,12 +784,18 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
       {activeTab === 'documents' && (
         <div className="filio-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900">All Documents</h3>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">All Documents</h3>
+              <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                <Info size={11} className="shrink-0" />
+                Files are stored in Xero, not Filio — Filio tracks metadata only
+              </p>
+            </div>
             <div className="flex gap-2">
-              <button onClick={() => toast.info('Feature coming soon')} className="btn-secondary text-xs px-3 py-1.5">
+              <button onClick={() => toast.info('Export CSV — coming soon')} className="btn-secondary text-xs px-3 py-1.5">
                 <Download size={13} /> Export CSV
               </button>
-              <button onClick={() => toast.info('Feature coming soon')} className="btn-primary text-xs px-3 py-1.5">
+              <button onClick={() => toast.info('Manual upload — coming soon')} className="btn-primary text-xs px-3 py-1.5">
                 <Plus size={13} /> Manual Upload
               </button>
             </div>
@@ -862,7 +1048,7 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
           description={confirmConfig.description}
           confirmLabel={confirmConfig.confirmLabel}
           onConfirm={confirmConfig.onConfirm}
-          loading={regeneratingToken || regeneratingMagicEmail}
+          loading={regeneratingToken || regeneratingMagicEmail || deletingClient}
         />
       )}
     </div>
