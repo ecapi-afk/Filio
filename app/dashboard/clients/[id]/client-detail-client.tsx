@@ -154,6 +154,8 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
   const [regeneratingMagicEmail, setRegeneratingMagicEmail] = useState(false)
   const [showOverflowMenu, setShowOverflowMenu] = useState(false)
   const [isDormant, setIsDormant] = useState((client as any).management_status === 'dormant')
+  const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; metadata: Record<string, unknown>; timestamp: string; actor: string }[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
   const [settingStatus, setSettingStatus] = useState(false)
   const [deletingClient, setDeletingClient] = useState(false)
   const [dismissedBanners, setDismissedBanners] = useState<string[]>([])
@@ -188,6 +190,17 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
       setFinancialYearDay('')
     }
   }, [financialYearMonth, availableDays, financialYearDay])
+
+  // Fetch real audit logs when audit tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'audit') return
+    setAuditLoading(true)
+    fetch(`/api/clients/${clientId}/audit-logs`)
+      .then(r => r.json())
+      .then(d => setAuditLogs(d.logs ?? []))
+      .catch(() => {})
+      .finally(() => setAuditLoading(false))
+  }, [activeTab, clientId])
 
   const handleRegenerateToken = async () => {
     setRegeneratingToken(true)
@@ -329,6 +342,61 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
     } finally {
       setDeletingClient(false)
     }
+  }
+
+  const formatAuditLabel = (action: string, metadata: Record<string, unknown>): string => {
+    const labels: Record<string, string> = {
+      client_reactivated: 'Client reactivated',
+      client_set_dormant: 'Client set to dormant',
+      client_deleted: 'Client deleted',
+      client_restored: 'Client restored',
+      portal_link_regenerated: 'Portal link regenerated',
+      magic_email_regenerated: 'Magic email regenerated',
+      reminder_sent: 'Reminder sent',
+      magic_link_sent: 'Magic link sent',
+      file_uploaded: 'File uploaded',
+      file_reclassified: 'File reclassified',
+      overdue_banner_dismissed: 'Overdue banner dismissed',
+      banner_dismissed: 'Banner dismissed',
+      client_created: 'Client created',
+      xero_synced: 'Synced to Xero',
+    }
+    const base = labels[action] ?? action.replace(/_/g, ' ')
+    const reason = metadata?.reason as string | undefined
+    return reason ? `${base} — ${reason}` : base
+  }
+
+  const handleExportAuditPdf = () => {
+    const rows = auditLogs.map(l => `
+      <tr>
+        <td>${new Date(l.timestamp).toLocaleString('en-GB')}</td>
+        <td>${formatAuditLabel(l.action, l.metadata)}</td>
+        <td>${l.actor}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Audit Log — ${client.name}</title>
+<style>
+  body { font-family: sans-serif; font-size: 12px; color: #111; padding: 24px; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  p { color: #555; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f3f4f6; text-align: left; padding: 6px 10px; font-size: 11px; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+</style>
+</head><body>
+<h1>Audit Log: ${client.name}</h1>
+<p>Exported ${new Date().toLocaleDateString('en-GB')} · ${auditLogs.length} entries</p>
+<table>
+  <thead><tr><th>Date / Time</th><th>Action</th><th>Actor</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<script>window.onload=function(){window.print();}</script>
+</body></html>`
+
+    const win = window.open('', '_blank')
+    if (win) { win.document.write(html); win.document.close() }
   }
 
   const handleSaveSettings = async () => {
@@ -1067,30 +1135,38 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
         <div className="filio-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-900">Audit Log</h3>
-            <button onClick={() => toast.info('Feature coming soon')} className="btn-secondary text-xs px-3 py-1.5">
+            <button
+              onClick={handleExportAuditPdf}
+              disabled={auditLogs.length === 0}
+              className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               <Download size={13} /> Export PDF
             </button>
           </div>
           <div className="divide-y divide-gray-50">
-            {[
-              { action: 'File uploaded', detail: 'Receipt via Portal', time: '2 hours ago', user: 'Client' },
-              { action: 'Reminder sent', detail: 'Auto reminder · 7 days before VAT deadline', time: '25 Mar 2026, 08:00', user: 'System' },
-              { action: 'Token regenerated', detail: 'Old upload link invalidated', time: '20 Mar 2026, 14:23', user: 'accountant@firm.com' },
-              { action: 'File uploaded', detail: 'Invoice via Manual', time: '18 Mar 2026, 11:05', user: 'accountant@firm.com' },
-              { action: 'Client created', detail: 'Imported from Xero', time: '01 Mar 2026, 09:00', user: 'accountant@firm.com' },
-            ].map((log, i) => (
-              <div key={i} className="flex items-start gap-4 px-5 py-3.5">
-                <Shield size={14} className="text-gray-300 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-gray-800">{log.action}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{log.detail}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[10px] text-gray-400">{log.time}</p>
-                  <p className="text-[10px] font-medium text-gray-500">{log.user}</p>
-                </div>
+            {auditLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <RefreshCw size={18} className="animate-spin text-gray-300" />
               </div>
-            ))}
+            ) : auditLogs.length === 0 ? (
+              <div className="py-10 text-center">
+                <Shield size={24} className="mx-auto mb-2 text-gray-200" />
+                <p className="text-xs text-gray-400">No audit events recorded yet</p>
+              </div>
+            ) : (
+              auditLogs.map((log) => (
+                <div key={log.id} className="flex items-start gap-4 px-5 py-3.5">
+                  <Shield size={14} className="text-gray-300 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-800">{formatAuditLabel(log.action, log.metadata)}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] text-gray-400">{new Date(log.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                    <p className="text-[10px] font-medium text-gray-500">{log.actor}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
