@@ -387,7 +387,7 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
 
           {/* Health Status Chips (secondary filter) — only shown in active tab */}
           {managementTab === 'active' && (
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 flex-nowrap sm:flex-wrap">
               {statusOptions.map(s => {
                 const count = s === 'All'
                   ? clients.filter(c => c.management_status === 'active').length
@@ -415,8 +415,58 @@ export function ClientsClient({ initialClients = [] }: ClientsClientProps) {
           )}
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Mobile card list — visible on small screens only */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {sortedFiltered.length === 0 ? (
+            <div className="py-12 text-center">
+              <Users size={28} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm text-gray-400">No clients found</p>
+            </div>
+          ) : sortedFiltered.map(client => {
+            const isDeleted = managementTab === 'deleted'
+            const countdown = isDeleted ? getDeletionCountdown(client.deleted_at) : null
+            return (
+              <Link
+                key={client.id}
+                href={isDeleted ? '#' : `/dashboard/clients/${client.id}`}
+                className={`flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${isDeleted ? 'opacity-70 pointer-events-none' : ''}`}
+                onClick={isDeleted ? e => e.preventDefault() : undefined}
+              >
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                  style={{ background: isDeleted ? '#9CA3AF' : '#059669' }}
+                >
+                  {client.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold ${isDeleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{client.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{client.email}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  {isDeleted ? (
+                    <span className="text-[10px] text-red-500 font-medium">
+                      {countdown?.expired ? 'Pending deletion' : `${countdown?.days}d left`}
+                    </span>
+                  ) : (
+                    <>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                        client.health_status === 'Overdue' ? 'bg-red-50 text-red-600' :
+                        client.health_status === 'Due Soon' ? 'bg-amber-50 text-amber-700' :
+                        client.health_status === 'Complete' ? 'bg-emerald-50 text-emerald-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>{client.health_status || 'Active'}</span>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{client.upload_progress?.uploaded || 0} uploads</p>
+                    </>
+                  )}
+                </div>
+                {!isDeleted && <ChevronRight size={14} className="text-gray-300 shrink-0" />}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Table — hidden on mobile */}
+        <div className="hidden sm:block overflow-x-auto">
         <table className="w-full min-w-[600px] text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50">

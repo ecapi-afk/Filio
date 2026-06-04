@@ -307,7 +307,7 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
       </div>
 
       {/* ── Main Grid: Table + Right Panel ── */}
-      <div className="flex gap-5">
+      <div className="flex flex-col lg:flex-row gap-5">
         {/* Client Overview Table */}
         <div className="flex-[3] min-w-0 filio-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -318,7 +318,7 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-50">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 px-5 py-3 border-b border-gray-50">
             <input
               type="text"
               placeholder="Search by name or email..."
@@ -326,7 +326,7 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
               onChange={e => setSearch(e.target.value)}
               className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:border-emerald-400 focus:bg-white transition-all"
             />
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 shrink-0">
               {(['All', 'Overdue', 'Due Soon', 'Starred'] as FilterTab[]).map(tab => {
                 const counts: Record<FilterTab, number | null> = {
                   'All': clients.length,
@@ -455,7 +455,7 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
         </div>
 
         {/* Right Panel */}
-        <div className="flex-1 min-w-[260px] space-y-4">
+        <div className="lg:flex-1 lg:min-w-[260px] space-y-4">
           {/* Upcoming Deadlines */}
           <div className="filio-card p-4">
             <div className="flex items-center justify-between mb-3">
