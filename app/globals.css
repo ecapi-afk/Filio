@@ -185,20 +185,19 @@
 
   /* ── D-20: Global Interaction States ── */
 
-  /* Focus ring: emerald outline, 2px offset, visible on keyboard nav */
+  /* Focus ring: brand emerald, 2px + 1px offset, visible on keyboard nav (D-20) */
   :focus-visible {
-    outline: 2px solid #059669;
-    outline-offset: 2px;
+    outline: 2px solid #1D9E75;
+    outline-offset: 1px;
     border-radius: 4px;
   }
 
-  /* Disabled: uniform 40% opacity + no-pointer cursor */
+  /* Disabled: 40% opacity + not-allowed cursor, pointer-events preserved for tooltip display (D-20) */
   :disabled,
   [aria-disabled="true"],
   .disabled {
     opacity: 0.4;
-    cursor: not-allowed !important;
-    pointer-events: none;
+    cursor: not-allowed;
   }
 
   /* Loading shimmer utility */
