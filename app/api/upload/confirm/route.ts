@@ -103,6 +103,15 @@ export async function POST(request: NextRequest) {
       console.error('Failed to refresh cache:', e)
     }
 
+    // Fire-and-forget: purge expired portal tokens and OTPs on each successful upload
+    if (token) {
+      const adminForCleanup = await createAdminClient()
+      Promise.all([
+        adminForCleanup.from('portal_tokens').delete().lt('expires_at', new Date().toISOString()),
+        adminForCleanup.from('portal_otps').delete().or('used_at.not.is.null,expires_at.lt.' + new Date().toISOString()),
+      ]).catch(() => { /* non-critical */ })
+    }
+
     return NextResponse.json({
       success: true,
       upload,
