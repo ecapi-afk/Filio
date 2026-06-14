@@ -439,11 +439,6 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
   // Cast to avoid Supabase type inference issues
   const clientData = data as ClientWithRelations
 
-  console.log('getClientById:', {
-    id,
-    clientData: data
-  })
-
   // Fetch requests + uploads in parallel (both only depend on client id)
   const timezone = (clientData.firms as any)?.timezone || 'Europe/London'
   const now = getTodayStrInTimezone(timezone)
@@ -500,7 +495,7 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
     calculatedHealth = calculateHealthStatusFromData(requests, uploadedCount, now)
   }
 
-  const subPlan = subscriptionResult.data?.plan ?? 'trial'
+  const subPlan = (subscriptionResult.data as any)?.plan ?? 'trial'
   const isPro = subPlan === 'professional' || subPlan === 'firm'
 
   return {

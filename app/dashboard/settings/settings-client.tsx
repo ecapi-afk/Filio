@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { COMMON_TIMEZONES } from '@/lib/utils/timezone';
+import { PLAN_CLIENT_LIMITS } from '@/lib/constants/plans';
 import {
   Zap,
   User,
@@ -18,6 +19,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -733,6 +735,24 @@ function BillingSettings({ subscription, clientCount = 0 }: { subscription?: Sub
   const planRank: Record<string, number> = { starter: 0, professional: 1, firm: 2 };
   const currentRank = planRank[currentPlan] ?? 1;
 
+  const [downgradeConfirm, setDowngradeConfirm] = useState<{
+    planSlug: string;
+    newLimit: number;
+    excess: number;
+  } | null>(null);
+
+  const handlePlanClick = (planSlug: string, isDowngrade: boolean) => {
+    if (isDowngrade) {
+      const newLimit = PLAN_CLIENT_LIMITS[planSlug] ?? 20;
+      const excess = Math.max(0, clientCount - newLimit);
+      if (excess > 0) {
+        setDowngradeConfirm({ planSlug, newLimit, excess });
+        return;
+      }
+    }
+    handleUpgrade(PLAN_SLUGS[planSlug]);
+  };
+
   return (
     <div className="max-w-3xl space-y-5">
       {/* Current Plan Card */}
@@ -818,7 +838,7 @@ function BillingSettings({ subscription, clientCount = 0 }: { subscription?: Sub
                     className="w-full"
                     size="sm"
                     disabled={isLoading}
-                    onClick={() => handleUpgrade(PLAN_SLUGS[p.slug])}
+                    onClick={() => handlePlanClick(p.slug, isDowngrade)}
                   >
                     {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : isDowngrade ? 'Downgrade' : 'Upgrade'}
                   </Button>
@@ -880,6 +900,48 @@ function BillingSettings({ subscription, clientCount = 0 }: { subscription?: Sub
           {' '}— we will process your request within 30 days in accordance with GDPR.
         </p>
       </div>
+
+      {/* Downgrade confirmation dialog */}
+      {downgradeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Confirm Downgrade</h3>
+                <p className="text-xs text-gray-500">
+                  You currently have <strong>{clientCount} active clients</strong>.
+                  The {downgradeConfirm.planSlug.charAt(0).toUpperCase() + downgradeConfirm.planSlug.slice(1)} plan
+                  allows up to <strong>{downgradeConfirm.newLimit}</strong>.
+                </p>
+                <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mt-2">
+                  <strong>{downgradeConfirm.excess} client{downgradeConfirm.excess > 1 ? 's' : ''}</strong> will be
+                  automatically set to <strong>dormant</strong> (least recently active first).
+                  You can reactivate them by upgrading again.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setDowngradeConfirm(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  const slug = downgradeConfirm.planSlug;
+                  setDowngradeConfirm(null);
+                  handleUpgrade(PLAN_SLUGS[slug]);
+                }}
+              >
+                Confirm Downgrade
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
