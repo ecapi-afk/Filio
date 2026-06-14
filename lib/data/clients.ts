@@ -12,6 +12,10 @@ export type ClientWithRelations = Client & {
   requests?: any[]
   uploads?: any[]
   firms?: any
+  next_deadline?: { date: string; type: string } | null
+  upload_progress?: { uploaded: number; required: number }
+  health_status?: HealthStatus
+  short_links?: Array<{ short_code: string; is_active: boolean }>
 }
 
 export type ClientListItem = {

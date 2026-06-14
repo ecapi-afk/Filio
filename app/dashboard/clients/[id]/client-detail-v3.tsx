@@ -20,6 +20,7 @@ import {
   formatFileSize,
   formatUploadedAt,
   getCategoryBadgeColor,
+  getClientAvatarBg,
   DOC_CATEGORIES,
 } from '@/lib/file-types'
 import { Card } from '@/components/ui/card'
@@ -447,8 +448,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
         {/* Client Header Card */}
         <div className="filio-card p-5 flex items-center gap-5">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-            style={{ background: '#059669' }}
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0 ${getClientAvatarBg(client.health_status)}`}
           >
             {client.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </div>
@@ -500,7 +500,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
             </div>
             <div className="w-px bg-gray-100" />
             <div>
-              <p className="text-2xl font-bold text-gray-900 tabular-nums">0</p>
+              <p className="text-2xl font-bold text-gray-900 tabular-nums">{realUploads.length}</p>
               <p className="text-xs text-gray-400">Total uploads</p>
             </div>
             <div className="w-px bg-gray-100" />
@@ -508,7 +508,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
               <p className={`text-2xl font-bold tabular-nums ${deadlineDays < 0 ? 'text-red-600' : deadlineDays <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
                 {deadlineDays < 0 ? Math.abs(deadlineDays) + 'd' : deadlineDays + 'd'}
               </p>
-              <p className="text-xs text-gray-400">{deadlineDays < 0 ? 'Overdue' : 'Until deadline'}</p>
+              <p className="text-xs text-gray-400">{deadlineDays < 0 ? 'Days overdue' : `Until ${client.next_deadline?.type || 'deadline'}`}</p>
             </div>
           </div>
         </div>
@@ -555,8 +555,8 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                             <p className="text-xs text-gray-400 mt-1">{formatDeadlineDateShort(annualRequest.deadline_date)}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-2xl font-bold tabular-nums leading-tight" style={{ color: deadlineDaysColor(annualDays) }}>
-                              {Math.abs(annualDays)} days
+                            <p className="text-xl font-bold tabular-nums leading-tight" style={{ color: deadlineDaysColor(annualDays) }}>
+                              {deadlineDaysLabel(annualDays)}
                             </p>
                             <div className="mt-1">
                               <StatusBadge status={deadlineDaysStatus(annualDays)} />
@@ -609,8 +609,8 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                             <p className="text-xs text-gray-400 mt-1">{formatDeadlineDateShort(vatRequest.deadline_date)}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-2xl font-bold tabular-nums leading-tight" style={{ color: deadlineDaysColor(vatDays) }}>
-                              {Math.abs(vatDays)} days
+                            <p className="text-xl font-bold tabular-nums leading-tight" style={{ color: deadlineDaysColor(vatDays) }}>
+                              {deadlineDaysLabel(vatDays)}
                             </p>
                             <div className="mt-1">
                               <StatusBadge status={deadlineDaysStatus(vatDays)} />
@@ -703,7 +703,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                         {getExt(u.filename)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{u.filename}</p>
+                        <p className="text-xs font-semibold text-gray-800 truncate">{u.original_filename || u.filename}</p>
                         <p className="text-[10px] text-gray-400">{formatUploadedAt(u.uploaded_at)} · {formatFileSize(u.file_size)}</p>
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -890,8 +890,10 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                         {getExt(u.filename)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-gray-800 truncate max-w-[320px]">{u.filename}</p>
-                        <p className="text-[10px] text-gray-400 truncate max-w-[320px]">{formatFileSize(u.file_size)}</p>
+                        <p className="text-xs font-semibold text-gray-800 truncate max-w-[320px]">{u.original_filename || u.filename}</p>
+                        <p className="text-[10px] text-gray-400 truncate max-w-[320px]">
+                          {u.original_filename && u.original_filename !== u.filename ? `${u.filename} · ` : ''}{formatFileSize(u.file_size)}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -951,11 +953,34 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <button onClick={() => {
-                        navigator.clipboard.writeText(u.filename)
+                        navigator.clipboard.writeText(u.original_filename || u.filename)
                         toast.success('Filename copied!')
                       }} className="text-xs text-gray-500 hover:text-gray-700" title="Copy filename">
                         <Copy size={14} />
                       </button>
+                      {(s === 'error' || s === 'failed') && (
+                        <button
+                          onClick={async () => {
+                            toast.loading('Retrying Xero sync…', { id: `retry-${u.id}` })
+                            try {
+                              const res = await fetch(`/api/uploads/${u.id}/retry`, { method: 'POST' })
+                              if (res.ok) {
+                                toast.success('Synced to Xero', { id: `retry-${u.id}` })
+                                router.refresh()
+                              } else {
+                                const err = await res.json().catch(() => ({}))
+                                toast.error(err.error || 'Retry failed', { id: `retry-${u.id}` })
+                              }
+                            } catch {
+                              toast.error('Retry failed', { id: `retry-${u.id}` })
+                            }
+                          }}
+                          className="text-xs text-red-500 hover:text-red-700"
+                          title="Retry Xero sync"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                      )}
                       {s === 'synced' && (u as any).xero_attachment_id && (
                         <a
                           href={`/api/uploads/${u.id}/download`}
