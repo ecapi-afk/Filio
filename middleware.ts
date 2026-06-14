@@ -40,6 +40,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Protect /filio-control — admin only, verified by email whitelist in env
+  if (request.nextUrl.pathname.startsWith('/filio-control')) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail || user.email !== adminEmail) {
+      // Redirect non-admins silently to dashboard — don't reveal the route exists
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Redirect logged-in users away from auth pages
   if ((request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register') && user) {
     const url = request.nextUrl.clone();
