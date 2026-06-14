@@ -454,7 +454,7 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
       .eq('client_id', id),
     adminClient
       .from('uploads')
-      .select('id, filename, original_filename, file_type, file_size, xero_status, channel, uploaded_at, xero_upload_mode, xero_attachment_id, storage_path', { count: 'exact' })
+      .select('id, filename, original_filename, file_type, file_size, xero_status, channel, uploaded_at, xero_upload_mode, xero_attachment_id', { count: 'exact' })
       .eq('client_id', id)
       .order('uploaded_at', { ascending: false }),
   ])
