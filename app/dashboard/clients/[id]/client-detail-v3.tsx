@@ -540,6 +540,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                     toast.error('Failed to update star')
                   }
                 }}
+                title={starred ? 'Remove from starred' : 'Star this client'}
               >
                 <Star size={18} fill={starred ? '#D97706' : 'none'} style={{ color: starred ? '#D97706' : '#D1D5DB' }} />
               </button>
@@ -570,7 +571,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
             </div>
             {headerDeadlines[0] && (
               <>
-                <div className="w-px bg-gray-100 self-stretch" />
+                <div className="w-px bg-gray-300 self-stretch" />
                 <div>
                   <p className={`text-2xl font-bold tabular-nums ${headerDeadlines[0].days < 0 ? 'text-red-600' : headerDeadlines[0].days <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
                     {Math.abs(headerDeadlines[0].days)}d
@@ -583,7 +584,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
             )}
             {headerDeadlines[1] && (
               <>
-                <div className="w-px bg-gray-100 self-stretch" />
+                <div className="w-px bg-gray-300 self-stretch" />
                 <div>
                   <p className={`text-2xl font-bold tabular-nums ${headerDeadlines[1].days < 0 ? 'text-red-600' : headerDeadlines[1].days <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
                     {Math.abs(headerDeadlines[1].days)}d
@@ -691,6 +692,15 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                           <div>
                             <p className="text-sm font-bold text-gray-900">VAT Return Deadline</p>
                             <p className="text-xs text-gray-400 mt-1">{formatDeadlineDateShort(vatRequest.deadline_date)}</p>
+                            {client.vat_quarter_group && client.vat_quarter_group !== 'none' && (() => {
+                              const grp = client.vat_quarter_group as 'A' | 'B' | 'C'
+                              const info = VAT_GROUP_INFO[grp]
+                              return (
+                                <p className="text-[10px] text-gray-400 mt-1.5">
+                                  Group {grp} · {info.quarters.join(' / ')}
+                                </p>
+                              )
+                            })()}
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-xl font-bold tabular-nums leading-tight" style={{ color: deadlineDaysColor(vatDays) }}>
@@ -812,23 +822,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
 
             {/* ── Notes Card ────────────────────────────────────────────── */}
             <div className="filio-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-gray-900">Notes</h3>
-                <div className="flex items-center gap-2">
-                  {notesSaved && (
-                    <span className="text-xs font-medium" style={{ color: '#059669' }}>Saved ✓</span>
-                  )}
-                  <button
-                    onClick={handleSaveNotes}
-                    disabled={savingNotes}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
-                    style={{ background: '#059669' }}
-                  >
-                    {savingNotes ? <RefreshCw size={11} className="animate-spin" /> : null}
-                    {savingNotes ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              </div>
+              <h3 className="text-sm font-bold text-gray-900 mb-3">Notes</h3>
               <textarea
                 value={notes}
                 onChange={e => { setNotes(e.target.value); setNotesSaved(false) }}
@@ -836,6 +830,20 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                 rows={4}
                 className="w-full text-sm px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:border-emerald-400 focus:bg-white transition-all resize-none text-gray-700 placeholder-gray-400"
               />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                {notesSaved && (
+                  <span className="text-xs font-medium" style={{ color: '#059669' }}>Saved ✓</span>
+                )}
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
+                  style={{ background: '#059669' }}
+                >
+                  {savingNotes ? <RefreshCw size={11} className="animate-spin" /> : null}
+                  {savingNotes ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
 
           </div>
@@ -853,38 +861,6 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                     {client.portal_status}
                   </span>
                 </div>
-                {isVatRegistered && client.vat_quarter_group && client.vat_quarter_group !== 'none' ? (() => {
-                  const grp = client.vat_quarter_group as 'A' | 'B' | 'C'
-                  const info = VAT_GROUP_INFO[grp]
-                  return (
-                    <div>
-                      <span className="text-xs text-gray-500 block mb-2">VAT Group</span>
-                      <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-3 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full tracking-wide">
-                            Group {grp}
-                          </span>
-                          <span className="text-[10px] text-blue-400 font-medium">UK VAT</span>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-semibold text-blue-400 uppercase tracking-wider mb-1.5">Quarter ends</p>
-                          <div className="flex gap-1">
-                            {info.quarters.map(m => (
-                              <span key={m} className="text-[10px] font-semibold text-blue-700 bg-white border border-blue-200 px-1.5 py-0.5 rounded-md flex-1 text-center">
-                                {m}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })() : (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">VAT Group</span>
-                    <span className="text-xs font-semibold text-gray-400">Not registered</span>
-                  </div>
-                )}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Last upload</span>
                   <span className="text-xs text-gray-700">{formatUploadedAt(client.last_upload)}</span>
@@ -936,6 +912,10 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                 <button onClick={() => toast.info('Feature coming soon')} className="text-emerald-600">
                   <ToggleRight size={20} />
                 </button>
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-500">Last upload</span>
+                <span className="text-xs text-gray-700">{formatUploadedAt(client.last_upload)}</span>
               </div>
               <button
                 onClick={openRegenerateMagicEmailConfirm}
