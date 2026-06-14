@@ -703,7 +703,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                         {getExt(u.filename)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{u.original_filename || u.filename}</p>
+                        <p className="text-xs font-semibold text-gray-800 truncate">{u.filename}</p>
                         <p className="text-[10px] text-gray-400">{formatUploadedAt(u.uploaded_at)} · {formatFileSize(u.file_size)}</p>
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -890,9 +890,9 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                         {getExt(u.filename)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-gray-800 truncate max-w-[320px]">{u.original_filename || u.filename}</p>
+                        <p className="text-xs font-semibold text-gray-800 truncate max-w-[320px]">{u.filename}</p>
                         <p className="text-[10px] text-gray-400 truncate max-w-[320px]">
-                          {u.original_filename && u.original_filename !== u.filename ? `${u.filename} · ` : ''}{formatFileSize(u.file_size)}
+                          {u.original_filename && u.original_filename !== u.filename ? `原始：${u.original_filename} · ` : ''}{formatFileSize(u.file_size)}
                         </p>
                       </div>
                     </div>
