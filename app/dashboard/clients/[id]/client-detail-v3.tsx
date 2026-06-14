@@ -38,6 +38,12 @@ const statusConfig: Record<ClientStatus, { label: string; dot: string; cls: stri
   'No Action': { label: 'No Action', dot: '#9CA3AF', cls: 'status-no-action' },
 }
 
+const VAT_GROUP_INFO: Record<'A' | 'B' | 'C', { quarters: string[]; filingMonths: string[] }> = {
+  A: { quarters: ['Jan', 'Apr', 'Jul', 'Oct'], filingMonths: ['Mar', 'Jun', 'Sep', 'Dec'] },
+  B: { quarters: ['Feb', 'May', 'Aug', 'Nov'], filingMonths: ['Apr', 'Jul', 'Oct', 'Jan'] },
+  C: { quarters: ['Mar', 'Jun', 'Sep', 'Dec'], filingMonths: ['May', 'Aug', 'Nov', 'Feb'] },
+}
+
 function StatusBadge({ status }: { status: ClientStatus }) {
   const cfg = statusConfig[status]
   return (
@@ -121,6 +127,61 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
 
   // Upload filter state
   const [uploadFilter, setUploadFilter] = useState<string>('All')
+
+  // Audit log state
+  const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; metadata: Record<string, unknown>; timestamp: string; actor: string }[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+
+  useEffect(() => {
+    if (activeTab !== 'audit') return
+    setAuditLoading(true)
+    fetch(`/api/clients/${clientId}/audit-logs`)
+      .then(r => r.json())
+      .then(d => setAuditLogs(d.logs ?? []))
+      .catch(() => {})
+      .finally(() => setAuditLoading(false))
+  }, [activeTab, clientId])
+
+  const formatAuditLabel = (action: string, metadata: Record<string, unknown>): string => {
+    const labels: Record<string, string> = {
+      client_reactivated: 'Client reactivated',
+      client_set_dormant: 'Client set to dormant',
+      client_deleted: 'Client deleted',
+      client_restored: 'Client restored',
+      portal_link_regenerated: 'Portal link regenerated',
+      magic_email_regenerated: 'Magic email regenerated',
+      reminder_sent: 'Reminder sent',
+      magic_link_sent: 'Magic link sent',
+      file_uploaded: 'File uploaded',
+      file_reclassified: 'File reclassified',
+      overdue_banner_dismissed: 'Overdue banner dismissed',
+      client_created: 'Client created',
+      xero_synced: 'Synced to Xero',
+      credentials_generated: 'Credentials generated',
+      portal_token_regenerated: 'Portal link regenerated',
+    }
+    const base = labels[action] ?? action.replace(/_/g, ' ')
+    const reason = metadata?.reason as string | undefined
+    return reason ? `${base} — ${reason}` : base
+  }
+
+  const handleExportAuditPdf = () => {
+    const rows = auditLogs.map(l => `
+      <tr>
+        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;">${formatAuditLabel(l.action, l.metadata)}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${new Date(l.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${l.actor}</td>
+      </tr>`).join('')
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Audit Log — ${client.name}</title>
+      <style>body{font-family:sans-serif;padding:32px}h1{font-size:18px;margin-bottom:4px}p{font-size:12px;color:#6b7280;margin-bottom:24px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 12px;background:#f9fafb;font-size:11px;color:#374151;border-bottom:2px solid #e5e7eb}</style>
+      </head><body>
+      <h1>Audit Log — ${client.name}</h1>
+      <p>Exported ${new Date().toLocaleDateString('en-GB')} · ${auditLogs.length} entries</p>
+      <table><thead><tr><th>Event</th><th>Date &amp; Time</th><th>Actor</th></tr></thead><tbody>${rows}</tbody></table>
+      </body></html>`
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close(); w.print() }
+  }
 
   // Parse financial year end from "Month Day" format
   const parseFinancialYearEnd = (value: string) => {
@@ -437,6 +498,17 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
   const deadlineDays = client.next_deadline ?
     Math.ceil((new Date(client.next_deadline.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
 
+  const headerDeadlines: Array<{ days: number; label: string }> = []
+  if (annualRequest) {
+    headerDeadlines.push({ days: calcDeadlineDays(annualRequest.deadline_date), label: 'Annual' })
+  }
+  if (vatRequest) {
+    headerDeadlines.push({ days: calcDeadlineDays(vatRequest.deadline_date), label: 'VAT Return' })
+  }
+  if (headerDeadlines.length === 0 && client.next_deadline) {
+    headerDeadlines.push({ days: deadlineDays, label: client.next_deadline.type || 'Deadline' })
+  }
+
   return (
     <div>
       {/* Back + Header */}
@@ -491,18 +563,37 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
               )}
             </div>
           </div>
-          <div className="flex gap-6 text-center">
+          <div className="flex gap-6 text-center items-center">
             <div>
               <p className="text-2xl font-bold text-gray-900 tabular-nums">{realUploads.length}</p>
               <p className="text-xs text-gray-400">Total uploads</p>
             </div>
-            <div className="w-px bg-gray-100" />
-            <div>
-              <p className={`text-2xl font-bold tabular-nums ${deadlineDays < 0 ? 'text-red-600' : deadlineDays <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
-                {deadlineDays < 0 ? Math.abs(deadlineDays) + 'd' : deadlineDays + 'd'}
-              </p>
-              <p className="text-xs text-gray-400">{deadlineDays < 0 ? 'Days overdue' : `Until ${client.next_deadline?.type || 'deadline'}`}</p>
-            </div>
+            {headerDeadlines[0] && (
+              <>
+                <div className="w-px bg-gray-100 self-stretch" />
+                <div>
+                  <p className={`text-2xl font-bold tabular-nums ${headerDeadlines[0].days < 0 ? 'text-red-600' : headerDeadlines[0].days <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
+                    {Math.abs(headerDeadlines[0].days)}d
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {headerDeadlines[0].days < 0 ? `${headerDeadlines[0].label} overdue` : `Until ${headerDeadlines[0].label}`}
+                  </p>
+                </div>
+              </>
+            )}
+            {headerDeadlines[1] && (
+              <>
+                <div className="w-px bg-gray-100 self-stretch" />
+                <div>
+                  <p className={`text-2xl font-bold tabular-nums ${headerDeadlines[1].days < 0 ? 'text-red-600' : headerDeadlines[1].days <= 14 ? 'text-amber-600' : 'text-gray-900'}`}>
+                    {Math.abs(headerDeadlines[1].days)}d
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {headerDeadlines[1].days < 0 ? `${headerDeadlines[1].label} overdue` : `Until ${headerDeadlines[1].label}`}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -762,12 +853,38 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                     {client.portal_status}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">VAT Group</span>
-                  <span className="text-xs font-semibold text-gray-700">
-                    {isVatRegistered ? `Group ${client.vat_quarter_group}` : 'Not registered'}
-                  </span>
-                </div>
+                {isVatRegistered && client.vat_quarter_group && client.vat_quarter_group !== 'none' ? (() => {
+                  const grp = client.vat_quarter_group as 'A' | 'B' | 'C'
+                  const info = VAT_GROUP_INFO[grp]
+                  return (
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-2">VAT Group</span>
+                      <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full tracking-wide">
+                            Group {grp}
+                          </span>
+                          <span className="text-[10px] text-blue-400 font-medium">UK VAT</span>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-semibold text-blue-400 uppercase tracking-wider mb-1.5">Quarter ends</p>
+                          <div className="flex gap-1">
+                            {info.quarters.map(m => (
+                              <span key={m} className="text-[10px] font-semibold text-blue-700 bg-white border border-blue-200 px-1.5 py-0.5 rounded-md flex-1 text-center">
+                                {m}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })() : (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">VAT Group</span>
+                    <span className="text-xs font-semibold text-gray-400">Not registered</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Last upload</span>
                   <span className="text-xs text-gray-700">{formatUploadedAt(client.last_upload)}</span>
@@ -1117,30 +1234,41 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
         <div className="filio-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-900">Audit Log</h3>
-            <button onClick={() => toast.info('Feature coming soon')} className="btn-secondary text-xs px-3 py-1.5">
+            <button onClick={handleExportAuditPdf} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5">
               <Download size={13} /> Export PDF
             </button>
           </div>
           <div className="divide-y divide-gray-50">
-            {[
-              { action: 'File uploaded', detail: 'Receipt via Portal', time: '2 hours ago', user: 'Client' },
-              { action: 'Reminder sent', detail: 'Auto reminder · 7 days before VAT deadline', time: '25 Mar 2026, 08:00', user: 'System' },
-              { action: 'Token regenerated', detail: 'Old upload link invalidated', time: '20 Mar 2026, 14:23', user: 'accountant@firm.com' },
-              { action: 'File uploaded', detail: 'Invoice via Manual', time: '18 Mar 2026, 11:05', user: 'accountant@firm.com' },
-              { action: 'Client created', detail: 'Imported from Xero', time: '01 Mar 2026, 09:00', user: 'accountant@firm.com' },
-            ].map((log, i) => (
-              <div key={i} className="flex items-start gap-4 px-5 py-3.5">
-                <Shield size={14} className="text-gray-300 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-gray-800">{log.action}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{log.detail}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[10px] text-gray-400">{log.time}</p>
-                  <p className="text-[10px] font-medium text-gray-500">{log.user}</p>
-                </div>
+            {auditLoading ? (
+              <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading…</div>
+            ) : auditLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Shield size={24} className="text-gray-200" />
+                <p className="text-sm text-gray-400">No audit events yet</p>
               </div>
-            ))}
+            ) : (
+              auditLogs.map((log) => {
+                const { label, detail } = formatAuditLabel(log.action, log.metadata)
+                const ts = new Date(log.timestamp)
+                const timeStr = ts.toLocaleString('en-GB', {
+                  day: '2-digit', month: 'short', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                })
+                return (
+                  <div key={log.id} className="flex items-start gap-4 px-5 py-3.5">
+                    <Shield size={14} className="text-gray-300 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-gray-800">{label}</p>
+                      {detail && <p className="text-[10px] text-gray-500 mt-0.5">{detail}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] text-gray-400">{timeStr}</p>
+                      <p className="text-[10px] font-medium text-gray-500">{log.actor}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
       )}
