@@ -959,27 +959,33 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                         <Copy size={14} />
                       </button>
                       {(s === 'error' || s === 'failed') && (
-                        <button
-                          onClick={async () => {
-                            toast.loading('Retrying Xero sync…', { id: `retry-${u.id}` })
-                            try {
-                              const res = await fetch(`/api/uploads/${u.id}/retry`, { method: 'POST' })
-                              if (res.ok) {
-                                toast.success('Synced to Xero', { id: `retry-${u.id}` })
-                                router.refresh()
-                              } else {
-                                const err = await res.json().catch(() => ({}))
-                                toast.error(err.error || 'Retry failed', { id: `retry-${u.id}` })
+                        u.storage_path ? (
+                          <button
+                            onClick={async () => {
+                              toast.loading('Retrying Xero sync…', { id: `retry-${u.id}` })
+                              try {
+                                const res = await fetch(`/api/uploads/${u.id}/retry`, { method: 'POST' })
+                                if (res.ok) {
+                                  toast.success('Synced to Xero', { id: `retry-${u.id}` })
+                                  router.refresh()
+                                } else {
+                                  const err = await res.json().catch(() => ({}))
+                                  toast.error(err.error || 'Retry failed', { id: `retry-${u.id}` })
+                                }
+                              } catch {
+                                toast.error('Retry failed', { id: `retry-${u.id}` })
                               }
-                            } catch {
-                              toast.error('Retry failed', { id: `retry-${u.id}` })
-                            }
-                          }}
-                          className="text-xs text-red-500 hover:text-red-700"
-                          title="Retry Xero sync"
-                        >
-                          <RefreshCw size={14} />
-                        </button>
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700"
+                            title="Retry Xero sync"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        ) : (
+                          <span title="File no longer in storage — cannot retry" className="text-gray-300 cursor-not-allowed">
+                            <RefreshCw size={14} />
+                          </span>
+                        )
                       )}
                       {s === 'synced' && (u as any).xero_attachment_id && (
                         <a
