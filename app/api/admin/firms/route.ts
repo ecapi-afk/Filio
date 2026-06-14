@@ -23,68 +23,101 @@ export async function GET(request: NextRequest) {
 
   const admin = await createAdminClient()
 
-  // 1. Fetch firms + subscriptions in one query
-  let firmsQuery = admin
+  // 1. Fetch firms (paginated, no nested join to avoid FK detection issues)
+  const { data: firms, count, error: firmError } = await admin
     .from('firms')
-    .select(`
-      id, name, created_at, suspended_at, admin_notes,
-      xero_tenant_id, xero_token_expires_at,
-      subscriptions (
-        plan, status, client_limit, current_period_end,
-        stripe_subscription_id, stripe_customer_id
-      )
-    `, { count: 'exact' })
+    .select('id, name, created_at, suspended_at, xero_tenant_id, xero_token_expires_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  const { data: firms, count, error } = await firmsQuery
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  if (!firms || firms.length === 0) {
-    return NextResponse.json({ firms: [], total: 0, page, limit })
+  if (firmError) {
+    return NextResponse.json({ error: firmError.message }, { status: 500 })
   }
 
-  const firmIds = firms.map(f => f.id)
+  if (!firms || firms.length === 0) {
+    const { count: totalFirms } = await admin.from('firms').select('id', { count: 'exact', head: true })
+    const { count: paidFirms } = await admin.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('plan', 'trial')
+    const { count: newThisMonth } = await admin.from('firms').select('id', { count: 'exact', head: true }).gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+    const { count: totalUploads } = await admin.from('uploads').select('id', { count: 'exact', head: true })
+    return NextResponse.json({
+      firms: [], total: 0, page, limit,
+      stats: { totalFirms: totalFirms ?? 0, paidFirms: paidFirms ?? 0, newThisMonth: newThisMonth ?? 0, totalUploads: totalUploads ?? 0 },
+    })
+  }
 
-  // 2. Fetch owner email for each firm (one profile per firm)
-  const { data: profiles } = await admin
-    .from('profiles')
-    .select('firm_id, email')
+  const firmIds = firms.map((f: any) => f.id)
+
+  // 2. Subscriptions — separate query, safer than nested select
+  const { data: subscriptions } = await admin
+    .from('subscriptions')
+    .select('firm_id, plan, status, client_limit, current_period_end, stripe_subscription_id, stripe_customer_id')
     .in('firm_id', firmIds)
 
-  const emailByFirm: Record<string, string> = {}
-  profiles?.forEach((p: any) => { emailByFirm[p.firm_id] = p.email })
+  const subByFirm: Record<string, any> = {}
+  subscriptions?.forEach((s: any) => { subByFirm[s.firm_id] = s })
 
-  // 3. Active client counts per firm
-  const { data: clientStats } = await admin
+  // 3. Owner emails — profiles gives us user IDs, then auth.admin for emails
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('id, firm_id')
+    .in('firm_id', firmIds)
+
+  const firmByUser: Record<string, string> = {}
+  profiles?.forEach((p: any) => { firmByUser[p.id] = p.firm_id })
+
+  const emailByFirm: Record<string, string> = {}
+  if (profiles && profiles.length > 0) {
+    const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    const userIdSet = new Set(Object.keys(firmByUser))
+    users
+      .filter((u: any) => userIdSet.has(u.id))
+      .forEach((u: any) => {
+        const firmId = firmByUser[u.id]
+        if (firmId && u.email) emailByFirm[firmId] = u.email
+      })
+  }
+
+  // 4. Client counts per firm
+  const { data: clientRows } = await admin
     .from('clients')
     .select('firm_id, management_status')
     .in('firm_id', firmIds)
 
   const activeByFirm: Record<string, number> = {}
   const totalByFirm: Record<string, number> = {}
-  clientStats?.forEach((c: any) => {
+  clientRows?.forEach((c: any) => {
     totalByFirm[c.firm_id] = (totalByFirm[c.firm_id] || 0) + 1
     if (c.management_status === 'active') {
       activeByFirm[c.firm_id] = (activeByFirm[c.firm_id] || 0) + 1
     }
   })
 
-  // 4. Total upload counts per firm (via client_id → firm mapping)
-  const { data: uploadStats } = await admin
-    .from('uploads')
-    .select('client_id, clients!inner(firm_id)')
-    .in('clients.firm_id', firmIds)
+  // 5. Upload counts — resolve client IDs for these firms, then count uploads
+  const { data: clientIdRows } = await admin
+    .from('clients')
+    .select('id, firm_id')
+    .in('firm_id', firmIds)
 
+  const firmByClientId: Record<string, string> = {}
+  clientIdRows?.forEach((c: any) => { firmByClientId[c.id] = c.firm_id })
+
+  const allClientIds = Object.keys(firmByClientId)
   const uploadsByFirm: Record<string, number> = {}
-  uploadStats?.forEach((u: any) => {
-    const fid = (u.clients as any)?.firm_id
-    if (fid) uploadsByFirm[fid] = (uploadsByFirm[fid] || 0) + 1
-  })
+  if (allClientIds.length > 0) {
+    const { data: uploadRows } = await admin
+      .from('uploads')
+      .select('client_id')
+      .in('client_id', allClientIds)
 
-  // Apply search filter in JS (Supabase can't easily cross-join filter on firm+profile)
+    uploadRows?.forEach((u: any) => {
+      const firmId = firmByClientId[u.client_id]
+      if (firmId) uploadsByFirm[firmId] = (uploadsByFirm[firmId] || 0) + 1
+    })
+  }
+
+  // Build result rows
   let result = firms.map((f: any) => {
-    const sub = Array.isArray(f.subscriptions) ? f.subscriptions[0] : f.subscriptions
+    const sub = subByFirm[f.id] ?? null
     const now = Date.now()
     const tokenExpiry = f.xero_token_expires_at ? new Date(f.xero_token_expires_at).getTime() : null
     const xeroStatus = !f.xero_tenant_id
@@ -99,7 +132,6 @@ export async function GET(request: NextRequest) {
       ownerEmail: emailByFirm[f.id] || null,
       createdAt: f.created_at,
       suspendedAt: f.suspended_at,
-      adminNotes: f.admin_notes,
       xeroStatus,
       subscription: sub
         ? {
@@ -107,8 +139,6 @@ export async function GET(request: NextRequest) {
             status: sub.status,
             clientLimit: sub.client_limit,
             currentPeriodEnd: sub.current_period_end,
-            stripeSubscriptionId: sub.stripe_subscription_id,
-            stripeCustomerId: sub.stripe_customer_id,
           }
         : null,
       activeClients: activeByFirm[f.id] || 0,
@@ -117,7 +147,7 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  // Search filter (name or email)
+  // Search filter (name or email) applied in JS
   if (search) {
     const q = search.toLowerCase()
     result = result.filter(
@@ -125,25 +155,18 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Aggregate stats for the dashboard header
-  const { count: totalFirms } = await admin
-    .from('firms')
-    .select('id', { count: 'exact', head: true })
-
-  const { count: paidFirms } = await admin
-    .from('subscriptions')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'active')
-    .neq('plan', 'trial')
-
-  const { count: newThisMonth } = await admin
-    .from('firms')
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
-
-  const { count: totalUploads } = await admin
-    .from('uploads')
-    .select('id', { count: 'exact', head: true })
+  // Dashboard header stats
+  const [
+    { count: totalFirms },
+    { count: paidFirms },
+    { count: newThisMonth },
+    { count: totalUploads },
+  ] = await Promise.all([
+    admin.from('firms').select('id', { count: 'exact', head: true }),
+    admin.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('plan', 'trial'),
+    admin.from('firms').select('id', { count: 'exact', head: true }).gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    admin.from('uploads').select('id', { count: 'exact', head: true }),
+  ])
 
   return NextResponse.json({
     firms: result,

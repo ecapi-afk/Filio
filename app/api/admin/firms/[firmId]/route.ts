@@ -35,10 +35,10 @@ export async function GET(
       .eq('id', firmId)
       .single(),
 
-    // Owner profile
+    // Owner profile — only has id + full_name; email lives in auth.users
     admin
       .from('profiles')
-      .select('email, full_name')
+      .select('id, full_name')
       .eq('firm_id', firmId)
       .limit(1)
       .single(),
@@ -75,6 +75,14 @@ export async function GET(
   const now = Date.now()
   const tokenExpiry = f.xero_token_expires_at ? new Date(f.xero_token_expires_at).getTime() : null
 
+  // Resolve owner email from auth.users (email not stored in profiles table)
+  const profileUserId = (profileRes.data as any)?.id ?? null
+  let ownerEmail: string | null = null
+  if (profileUserId) {
+    const { data: { user: authUser } } = await admin.auth.admin.getUserById(profileUserId)
+    ownerEmail = authUser?.email ?? null
+  }
+
   // Client stats breakdown
   const clients = (clientRes.data ?? []) as any[]
   const { data: clientCountData } = await admin
@@ -91,7 +99,7 @@ export async function GET(
     firm: {
       id: f.id,
       name: f.name,
-      ownerEmail: (profileRes.data as any)?.email ?? null,
+      ownerEmail,
       ownerName: (profileRes.data as any)?.full_name ?? null,
       createdAt: f.created_at,
       suspendedAt: f.suspended_at,
