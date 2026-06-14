@@ -136,6 +136,7 @@ export type Database = {
           created_at: string
           last_upload: string | null
           xero_contact_id: string | null
+          xero_linked_contact_id: string | null
           portal_token: string | null
           vat_quarter_group: string | null
           current_period_completed: boolean
@@ -174,6 +175,7 @@ export type Database = {
           created_at?: string
           last_upload?: string | null
           xero_contact_id?: string | null
+          xero_linked_contact_id?: string | null
           portal_token?: string | null
           vat_quarter_group?: string | null
           financial_year_end?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           created_at?: string
           last_upload?: string | null
           xero_contact_id?: string | null
+          xero_linked_contact_id?: string | null
           portal_token?: string | null
           vat_quarter_group?: string | null
           financial_year_end?: string | null
@@ -229,8 +232,10 @@ export type Database = {
           id: string
           client_id: string
           filename: string
+          original_filename: string | null
           file_type: string | null
           file_size: number | null
+          storage_path: string | null
           xero_status: string
           xero_attachment_id: string | null
           channel: string
@@ -240,8 +245,10 @@ export type Database = {
           id?: string
           client_id: string
           filename: string
+          original_filename?: string | null
           file_type?: string | null
           file_size?: number | null
+          storage_path?: string | null
           xero_status?: string
           xero_attachment_id?: string | null
           channel?: string
@@ -251,8 +258,10 @@ export type Database = {
           id?: string
           client_id?: string
           filename?: string
+          original_filename?: string | null
           file_type?: string | null
           file_size?: number | null
+          storage_path?: string | null
           xero_status?: string
           xero_attachment_id?: string | null
           channel?: string

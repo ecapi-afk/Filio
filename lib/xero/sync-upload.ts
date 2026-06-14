@@ -4,7 +4,6 @@ import { mimeTypeFromFilename } from '@/lib/utils/mime'
 
 interface SyncUploadOptions {
   uploadId: string
-  jobId?: string
   firmId: string
   filename: string
   fileBuffer: Buffer | ArrayBuffer
@@ -12,43 +11,54 @@ interface SyncUploadOptions {
   uploadMode?: string | null
 }
 
+const MAX_ATTEMPTS = 3
+const RETRY_DELAY_MS = 500
+
 /**
- * Immediately attempt to sync an upload to Xero.
- * On success: marks upload as synced and job as succeeded.
- * On failure: leaves upload as pending and job as queued for cron retry.
- * Returns true if synced.
+ * Sync a file to Xero with up to 3 attempts.
+ * On success: marks upload as synced.
+ * On total failure: marks upload as error and returns error message.
  */
-export async function syncUploadToXero(opts: SyncUploadOptions): Promise<boolean> {
-  const { uploadId, jobId, firmId, filename, fileBuffer, xeroContactId, uploadMode = 'attachments' } = opts
+export async function syncUploadToXero(
+  opts: SyncUploadOptions
+): Promise<{ success: boolean; error?: string }> {
+  const { uploadId, firmId, filename, fileBuffer, xeroContactId, uploadMode = 'attachments' } = opts
 
   const tokens = await ensureFreshAccessToken(firmId)
-  if (!tokens) return false
+  if (!tokens) {
+    await markFailed(uploadId)
+    return { success: false, error: 'Xero not connected' }
+  }
 
   const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer)
   const mimeType = mimeTypeFromFilename(filename)
+  let lastError: string | undefined
 
-  let result: { success: boolean; fileId?: string; error?: string }
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const result = (uploadMode === 'attachments' && xeroContactId)
+      ? await uploadToXeroContactAttachment(firmId, xeroContactId, filename, mimeType, buffer)
+      : await uploadToXeroInbox(firmId, filename, mimeType, buffer)
 
-  if (uploadMode === 'attachments' && xeroContactId) {
-    result = await uploadToXeroContactAttachment(firmId, xeroContactId, filename, mimeType, buffer)
-  } else {
-    result = await uploadToXeroInbox(firmId, filename, mimeType, buffer)
-  }
-
-  const supabase = await createAdminClient()
-
-  if (result.success) {
-    await Promise.all([
-      supabase.from('uploads').update({
+    if (result.success) {
+      const supabase = await createAdminClient()
+      await supabase.from('uploads').update({
         xero_status: 'synced',
         xero_attachment_id: result.fileId || null,
-      }).eq('id', uploadId),
-      jobId
-        ? supabase.from('jobs').update({ status: 'succeeded' }).eq('id', jobId)
-        : Promise.resolve(),
-    ])
-    return true
+      }).eq('id', uploadId)
+      return { success: true }
+    }
+
+    lastError = result.error
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS))
+    }
   }
 
-  return false
+  await markFailed(uploadId)
+  return { success: false, error: lastError }
+}
+
+async function markFailed(uploadId: string) {
+  const supabase = await createAdminClient()
+  await supabase.from('uploads').update({ xero_status: 'error' }).eq('id', uploadId)
 }

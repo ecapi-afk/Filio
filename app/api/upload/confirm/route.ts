@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { syncUploadToXero } from '@/lib/xero/sync-upload'
+import { sendUploadFailedEmail } from '@/lib/email/postmark'
 
 // POST /api/upload/confirm
 export async function POST(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
         .eq('client_id', clientId)
         .gt('expires_at', new Date().toISOString())
         .single()
-        
+
       if (!portalToken) {
         return NextResponse.json({ error: 'Invalid or expired token' }, { status: 403 })
       }
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
         file_type: fileType || null,
         file_size: fileSize || null,
         storage_path: storagePath,
-        xero_status: 'pending', // Will be synced by cron job
+        xero_status: 'pending',
         channel: channel || 'manual',
         uploaded_at: new Date().toISOString(),
       })
@@ -81,22 +82,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to record upload' }, { status: 500 })
     }
 
-    // Create fallback xero_sync job
-    const { data: jobData } = await supabase.from('jobs').insert({
-      client_id: clientId,
-      upload_id: upload.id,
-      type: 'xero_sync',
-      status: 'queued',
-      attempts: 0,
-    }).select('id').single()
-
-    // Immediately attempt Xero sync — fire-and-forget, cron job is the fallback
+    // Immediately attempt Xero sync — fire-and-forget (3 built-in retries)
+    // On final failure, email the client if this was a portal upload
     if (storagePath) {
       const adminForSync = await createAdminClient()
+      const isPortalUpload = !!token
       Promise.all([
         adminForSync
           .from('clients')
-          .select('firm_id, xero_contact_id, xero_linked_contact_id, firms(xero_upload_mode)')
+          .select('firm_id, name, email, xero_contact_id, xero_linked_contact_id, firms(xero_upload_mode, name), short_links(short_code, is_active)')
           .eq('id', clientId)
           .single(),
         adminForSync.storage.from('client-uploads').download(storagePath),
@@ -104,16 +98,29 @@ export async function POST(request: NextRequest) {
         const c = clientRes.data as any
         const fileData = fileRes.data
         if (!c || !fileData) return
-        await syncUploadToXero({
+
+        const syncResult = await syncUploadToXero({
           uploadId: upload.id,
-          jobId: jobData?.id,
           firmId: c.firm_id,
           filename,
           fileBuffer: await fileData.arrayBuffer(),
           xeroContactId: c.xero_contact_id ?? c.xero_linked_contact_id ?? null,
           uploadMode: c.firms?.xero_upload_mode ?? 'attachments',
         })
-      }).catch(err => console.error('Immediate Xero sync failed, cron will retry:', err))
+
+        if (!syncResult.success && isPortalUpload && c.email) {
+          const activeLink = c.short_links?.find((l: any) => l.is_active)
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://filio.uk'
+          const uploadLink = activeLink ? `${baseUrl}/m/${activeLink.short_code}` : baseUrl
+          sendUploadFailedEmail({
+            to: c.email,
+            clientName: c.name,
+            firmName: c.firms?.name || 'Your accountant',
+            filename,
+            uploadLink,
+          }).catch(err => console.error('Failed to send upload failed email:', err))
+        }
+      }).catch(err => console.error('Xero sync failed:', err))
     }
 
     // Update client's last_upload
@@ -122,7 +129,7 @@ export async function POST(request: NextRequest) {
       .update({ last_upload: new Date().toISOString() })
       .eq('id', clientId)
 
-    // Update client's health status based on uploads via synchronous cache refresh
+    // Synchronous cache refresh
     try {
       const { refreshClientCache } = await import('@/lib/data/clients')
       await refreshClientCache(clientId)

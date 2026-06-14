@@ -234,3 +234,64 @@ export async function sendOTPEmail(vars: OTPEmailVars) {
     throw new Error(`Postmark error ${result.ErrorCode}: ${result.Message}`)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Upload Result Summary (multiple files — Magic Email path)
+// Only sent when at least one file fails. Lists succeeded and failed files.
+// ---------------------------------------------------------------------------
+
+interface UploadResultEmailVars {
+  to: string
+  clientName: string
+  firmName: string
+  succeeded: string[]
+  failed: Array<{ filename: string; reason?: string }>
+  uploadLink: string
+}
+
+export async function sendUploadResultEmail(vars: UploadResultEmailVars) {
+  const client = getClient()
+  const firstName = vars.clientName.split(' ')[0]
+
+  const succeededHtml = vars.succeeded.length > 0
+    ? `<p>The following files were saved successfully:</p><ul>${vars.succeeded.map(f => `<li style="color:#059669;">${f}</li>`).join('')}</ul>`
+    : ''
+
+  const failedHtml = vars.failed.map(f =>
+    `<li style="color:#dc2626;">${f.filename}${f.reason ? ` — ${f.reason}` : ''}</li>`
+  ).join('')
+
+  const succeededText = vars.succeeded.length > 0
+    ? `Successfully saved:\n${vars.succeeded.map(f => `  - ${f}`).join('\n')}\n\n`
+    : ''
+
+  const failedText = `Could not be synced:\n${vars.failed.map(f => `  - ${f.filename}${f.reason ? ` (${f.reason})` : ''}`).join('\n')}`
+
+  const fileWord = vars.failed.length > 1 ? 'files' : 'a file'
+
+  const result = await client.sendEmail({
+    From: FROM,
+    To: vars.to,
+    Subject: `We couldn't process ${fileWord} you sent — ${vars.firmName}`,
+    HtmlBody: `
+      <p>Hi ${firstName},</p>
+      <p>Thank you for sending your documents to <strong>${vars.firmName}</strong>.</p>
+      ${succeededHtml}
+      <p><strong>The following file${vars.failed.length > 1 ? 's' : ''} could not be synced:</strong></p>
+      <ul>${failedHtml}</ul>
+      <p>Please re-upload them using your secure link:</p>
+      <p>
+        <a href="${vars.uploadLink}" style="display:inline-block;padding:12px 24px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px;">
+          Upload again
+        </a>
+      </p>
+      <p>— The ${vars.firmName} team via Filio</p>
+    `,
+    TextBody: `Hi ${firstName},\n\nThank you for sending your documents to ${vars.firmName}.\n\n${succeededText}${failedText}\n\nPlease re-upload them: ${vars.uploadLink}\n\n— The ${vars.firmName} team via Filio`,
+    MessageStream: 'outbound',
+  })
+
+  if (result.ErrorCode !== 0) {
+    throw new Error(`Postmark error ${result.ErrorCode}: ${result.Message}`)
+  }
+}
