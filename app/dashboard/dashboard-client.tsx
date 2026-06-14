@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card'
 import { formatRelativeTime } from '@/lib/utils'
 import { ACTIVITY_STYLES, type ActivityType } from '@/lib/constants/activity'
 import { getClientAvatarBg } from '@/lib/file-types'
+import { UNLIMITED_CLIENTS } from '@/lib/constants/plans'
 
 type FilterTab = 'All' | 'Overdue' | 'Due Soon' | 'Starred'
 
@@ -106,6 +107,10 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
   const [uploadsPrevMonth, setUploadsPrevMonth] = useState(stats.uploadsPrevMonth || 0)
   const [activeClientsAddedThisMonth, setActiveClientsAddedThisMonth] = useState(stats.activeClientsAddedThisMonth || 0)
   const [loadingUploads, setLoadingUploads] = useState(false)
+
+  // Quota exceeded warning: show once per session if active clients >= plan limit
+  const isOverQuota = stats.clientLimit < UNLIMITED_CLIENTS && stats.activeClientsCount >= stats.clientLimit
+  const [showQuotaWarning, setShowQuotaWarning] = useState(isOverQuota)
 
   // 异步加载上传统计（不阻塞页面渲染）
   useEffect(() => {
@@ -221,6 +226,47 @@ export function DashboardClient({ stats, initialClients = [] }: DashboardClientP
 
   return (
     <div className="space-y-6">
+
+      {/* ── Client Quota Exceeded Dialog ── */}
+      {showQuotaWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 relative">
+            <button
+              onClick={() => setShowQuotaWarning(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X size={16} />
+            </button>
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-5">
+              <AlertCircle size={22} className="text-amber-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Client limit reached</h2>
+            <p className="text-sm text-gray-500 mb-1">
+              You have <span className="font-semibold text-gray-800">{stats.activeClientsCount} active clients</span> on your current plan, which allows up to <span className="font-semibold text-gray-800">{stats.clientLimit}</span>.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              You won&apos;t be able to add new clients until you upgrade or set some clients to dormant.
+            </p>
+            <div className="flex gap-3">
+              <Link
+                href="/dashboard/settings?tab=billing"
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{ background: '#059669' }}
+                onClick={() => setShowQuotaWarning(false)}
+              >
+                <Zap size={14} /> Upgrade Plan
+              </Link>
+              <button
+                onClick={() => setShowQuotaWarning(false)}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Active Clients */}

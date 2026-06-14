@@ -20,18 +20,11 @@ export async function GET(
   const { firmId } = await params
   const admin = await createAdminClient()
 
-  const [firmRes, profileRes, clientRes, uploadRes, auditRes] = await Promise.all([
-    // Firm + subscription
+  const [firmRes, profileRes, clientRes, auditRes] = await Promise.all([
+    // Firm only — no nested join to avoid FK detection issues
     admin
       .from('firms')
-      .select(`
-        id, name, created_at, suspended_at, admin_notes,
-        xero_connection_status, xero_org_name, xero_last_sync_at, timezone,
-        subscriptions (
-          plan, status, client_limit, current_period_end,
-          stripe_subscription_id, stripe_customer_id
-        )
-      `)
+      .select('id, name, created_at, suspended_at, admin_notes, xero_connection_status, xero_org_name, xero_last_sync_at, timezone')
       .eq('id', firmId)
       .single(),
 
@@ -43,19 +36,13 @@ export async function GET(
       .limit(1)
       .single(),
 
-    // Client breakdown by status
+    // Recent clients
     admin
       .from('clients')
       .select('id, name, management_status, last_upload')
       .eq('firm_id', firmId)
       .order('last_upload', { ascending: false, nullsFirst: false })
       .limit(10),
-
-    // Upload count
-    admin
-      .from('uploads')
-      .select('id, clients!inner(firm_id)', { count: 'exact', head: true })
-      .eq('clients.firm_id', firmId),
 
     // Recent audit logs (last 20)
     admin
@@ -71,7 +58,31 @@ export async function GET(
   }
 
   const f = firmRes.data as any
-  const sub = Array.isArray(f.subscriptions) ? f.subscriptions[0] : f.subscriptions
+
+  // Subscription — separate query
+  const { data: subData } = await admin
+    .from('subscriptions')
+    .select('plan, status, client_limit, current_period_end, stripe_subscription_id, stripe_customer_id')
+    .eq('firm_id', firmId)
+    .limit(1)
+    .single()
+  const sub = subData as any
+
+  // Upload count — via client IDs for this firm
+  const { data: firmClientIds } = await admin
+    .from('clients')
+    .select('id')
+    .eq('firm_id', firmId)
+
+  let uploadCount = 0
+  if (firmClientIds && firmClientIds.length > 0) {
+    const ids = firmClientIds.map((c: any) => c.id)
+    const { count } = await admin
+      .from('uploads')
+      .select('id', { count: 'exact', head: true })
+      .in('client_id', ids)
+    uploadCount = count ?? 0
+  }
 
   // Resolve owner email from auth.users (email not stored in profiles table)
   const profileUserId = (profileRes.data as any)?.id ?? null
@@ -128,7 +139,7 @@ export async function GET(
       deleted: statusCounts['deleted'] || 0,
       recentClients: clients,
     },
-    totalUploads: uploadRes.count ?? 0,
+    totalUploads: uploadCount,
     auditLogs: auditRes.data ?? [],
   })
 }
