@@ -112,6 +112,15 @@ async function processAttachment(
       return { success: false, error: recordError.message }
     }
 
+    // Queue xero_sync job — same pattern as portal upload confirm
+    await supabaseAdmin.from("jobs").insert({
+      client_id: clientId,
+      upload_id: recordData.id,
+      type: "xero_sync",
+      status: "queued",
+      attempts: 0,
+    })
+
     return { success: true, uploadId: recordData.id }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Processing failed" }
