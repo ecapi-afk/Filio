@@ -158,6 +158,48 @@ export async function sendPasswordResetTemplate(params: PasswordResetTemplatePar
 }
 
 // ---------------------------------------------------------------------------
+// Upload Failed Notification
+// ---------------------------------------------------------------------------
+
+interface UploadFailedEmailVars {
+  to: string
+  clientName: string
+  firmName: string
+  filename: string
+  uploadLink: string
+}
+
+export async function sendUploadFailedEmail(vars: UploadFailedEmailVars) {
+  const client = getClient()
+  const firstName = vars.clientName.split(' ')[0]
+
+  const result = await client.sendEmail({
+    From: FROM,
+    To: vars.to,
+    Subject: `Action required: a file couldn't be saved — ${vars.firmName}`,
+    HtmlBody: `
+      <p>Hi ${firstName},</p>
+      <p>We're sorry, but the following file you uploaded could not be saved to <strong>${vars.firmName}</strong>'s system:</p>
+      <p style="padding:12px 16px;background:#fef2f2;border-left:4px solid #dc2626;border-radius:4px;font-weight:600;">${vars.filename}</p>
+      <p>Please try uploading it again using your secure link below:</p>
+      <p>
+        <a href="${vars.uploadLink}" style="display:inline-block;padding:12px 24px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px;">
+          Upload again
+        </a>
+      </p>
+      <p>If you continue to have trouble, please contact <strong>${vars.firmName}</strong> directly.</p>
+      <p>— The ${vars.firmName} team via Filio</p>
+    `,
+    TextBody: `Hi ${firstName},\n\nThe following file you uploaded could not be saved to ${vars.firmName}'s system:\n\n  ${vars.filename}\n\nPlease try uploading it again: ${vars.uploadLink}\n\nIf you continue to have trouble, please contact ${vars.firmName} directly.\n\n— The ${vars.firmName} team via Filio`,
+    MessageStream: 'outbound',
+  })
+
+  if (result.ErrorCode !== 0) {
+    throw new Error(`Postmark error ${result.ErrorCode}: ${result.Message}`)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // OTP (Portal Security Verification)
 // ---------------------------------------------------------------------------
 

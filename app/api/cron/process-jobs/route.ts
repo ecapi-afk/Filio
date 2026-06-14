@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureFreshAccessToken, uploadToXeroInbox, uploadToXeroContactAttachment } from '@/lib/xero/client'
 import { mimeTypeFromFilename } from '@/lib/utils/mime'
+import { sendUploadFailedEmail } from '@/lib/email/postmark'
 
 // Process queued xero_sync jobs
 // Runs every 5 minutes (configured in vercel.json)
@@ -28,9 +29,13 @@ export async function GET(request: NextRequest) {
         attempts,
         clients (
           id,
+          name,
+          email,
           firm_id,
           xero_contact_id,
+          short_links (short_code, is_active),
           firms (
+            name,
             xero_upload_mode
           )
         )
@@ -53,9 +58,12 @@ export async function GET(request: NextRequest) {
     for (const job of jobs) {
       const clientData = job.clients as {
         id: string
+        name: string
+        email: string | null
         firm_id: string
         xero_contact_id: string | null
-        firms: { xero_upload_mode: string | null } | null
+        short_links: Array<{ short_code: string; is_active: boolean }> | null
+        firms: { name: string | null; xero_upload_mode: string | null } | null
       } | null
 
       if (!clientData) {
@@ -188,6 +196,23 @@ export async function GET(request: NextRequest) {
             .update({ xero_status: 'error' })
             .eq('id', upload.id)
           failedCount++
+
+          // Notify client by email so they can re-upload via Magic Link
+          if (clientData?.email) {
+            const activeLink = clientData.short_links?.find(l => l.is_active)
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://filio.uk'
+            const uploadLink = activeLink
+              ? `${baseUrl}/m/${activeLink.short_code}`
+              : baseUrl
+            const firmName = clientData.firms?.name || 'Your accountant'
+            sendUploadFailedEmail({
+              to: clientData.email,
+              clientName: clientData.name,
+              firmName,
+              filename: upload.original_filename || upload.filename,
+              uploadLink,
+            }).catch(err => console.error('Failed to send upload-failed email:', err))
+          }
         }
       }
     }
