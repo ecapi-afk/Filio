@@ -27,7 +27,14 @@ export async function POST(
 
   try {
     const body = await request.json().catch(() => ({}))
-    const reason = body.reason || 'manual'
+
+    // Whitelist reason values that reach the DB — prevents arbitrary strings
+    // from being written to management_status_reason via a crafted POST body.
+    const VALID_REASONS = ['manual', 'auto_quota', 'auto_inactive'] as const
+    type DormantReason = typeof VALID_REASONS[number]
+    const reason: DormantReason = VALID_REASONS.includes(body.reason)
+      ? body.reason
+      : 'manual'
 
     const { data, error } = await supabase
       .from('clients')

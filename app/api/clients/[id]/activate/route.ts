@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isPlanPro } from '@/lib/constants/plans'
+import { isPlanPro, UNLIMITED_CLIENTS } from '@/lib/constants/plans'
 
 // POST /api/clients/[id]/activate
 export async function POST(
@@ -16,6 +16,9 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // `as any` because Supabase's auto-generated types don't yet cover all tables
+  // added after the last schema generation run. Remove once types are regenerated.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
   const { data: profile } = await db
@@ -45,7 +48,12 @@ export async function POST(
   ])
 
   const clientLimit = subscription?.client_limit ?? 20
-  if ((activeCount ?? 0) >= clientLimit) {
+
+  // Skip the quota gate entirely for Firm plan (UNLIMITED_CLIENTS sentinel).
+  // Without this guard, a firm with exactly 999_999 clients would incorrectly
+  // hit the limit. See lib/constants/plans.ts for why we use a sentinel, not Infinity.
+  const atLimit = clientLimit < UNLIMITED_CLIENTS && (activeCount ?? 0) >= clientLimit
+  if (atLimit) {
     return NextResponse.json(
       { error: 'quota_exceeded', limit: clientLimit },
       { status: 403 }
