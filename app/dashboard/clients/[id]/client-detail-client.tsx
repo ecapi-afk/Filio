@@ -7,7 +7,7 @@ import {
   ArrowLeft, Star, Send, ExternalLink, Upload, FileText,
   Bell, Settings, Shield, CheckCircle2, Clock, AlertCircle,
   Mail, Copy, RefreshCw, Trash2, ChevronRight, Plus,
-  ToggleLeft, ToggleRight, Download, MoreHorizontal, AlertTriangle, X, Info
+  ToggleLeft, ToggleRight, Download, MoreHorizontal, AlertTriangle, X, Info, Lock
 } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { toast } from 'sonner'
@@ -900,7 +900,7 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
               </div>
             </div>
 
-            <div className="filio-card p-5">
+            <div className="filio-card p-5 relative overflow-hidden">
               <h3 className="text-sm font-bold text-gray-900 mb-3">Magic Email</h3>
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-200 mb-3">
                 <Mail size={13} className="text-gray-400 shrink-0" />
@@ -928,6 +928,13 @@ export function ClientDetailClient({ client }: ClientDetailClientProps) {
                 <RefreshCw size={13} className={regeneratingMagicEmail ? 'animate-spin' : ''} />
                 {regeneratingMagicEmail ? 'Regenerating...' : 'Regenerate Magic Email'}
               </button>
+              {!client.isPro && (
+                <div className="absolute inset-0 bg-white/85 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 rounded-xl">
+                  <Lock size={16} className="text-gray-300" />
+                  <p className="text-xs font-semibold text-gray-400">Professional plan required</p>
+                  <p className="text-[10px] text-gray-300">Upgrade to send files via email</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

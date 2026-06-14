@@ -21,6 +21,28 @@ export async function POST(request: NextRequest) {
 
   const supabaseAdmin = await createAdminClient()
 
+  const deactivateMagicEmails = async (firmId: string) => {
+    const { data: firmClients } = await supabaseAdmin
+      .from('clients')
+      .select('id')
+      .eq('firm_id', firmId)
+
+    const clientIds = firmClients?.map((c: any) => c.id) ?? []
+    if (clientIds.length > 0) {
+      await supabaseAdmin
+        .from('magic_email_aliases')
+        .update({ is_active: false })
+        .in('client_id', clientIds)
+        .eq('is_active', true)
+    }
+
+    await supabaseAdmin
+      .from('clients')
+      .update({ magic_email_slug: null })
+      .eq('firm_id', firmId)
+      .not('magic_email_slug', 'is', null)
+  }
+
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
@@ -36,6 +58,12 @@ export async function POST(request: NextRequest) {
           stripe_customer_id: session.customer as string,
           current_period_end: new Date(session.expires_at! * 1000).toISOString(),
         }, { onConflict: 'firm_id' })
+
+        // Downgrading to non-Pro: revoke magic email access immediately
+        const isPro = plan === 'professional' || plan === 'firm'
+        if (!isPro) {
+          await deactivateMagicEmails(firmId)
+        }
       }
       break
     }
@@ -52,6 +80,8 @@ export async function POST(request: NextRequest) {
           .from('subscriptions')
           .update({ status: 'canceled' })
           .eq('firm_id', subData.firm_id)
+
+        await deactivateMagicEmails(subData.firm_id)
       }
       break
     }

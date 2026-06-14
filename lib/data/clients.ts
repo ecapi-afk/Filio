@@ -16,6 +16,7 @@ export type ClientWithRelations = Client & {
   upload_progress?: { uploaded: number; required: number }
   health_status?: HealthStatus
   short_links?: Array<{ short_code: string; is_active: boolean }>
+  isPro?: boolean
 }
 
 export type ClientListItem = {
@@ -447,7 +448,7 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
   const timezone = (clientData.firms as any)?.timezone || 'Europe/London'
   const now = getTodayStrInTimezone(timezone)
 
-  const [requestsResult, uploadsResult] = await Promise.all([
+  const [requestsResult, uploadsResult, subscriptionResult] = await Promise.all([
     adminClient
       .from('requests')
       .select('id, title, deadline_date, required_files, status')
@@ -457,6 +458,12 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
       .select('id, filename, original_filename, file_type, file_size, xero_status, channel, uploaded_at, xero_upload_mode, xero_attachment_id', { count: 'exact' })
       .eq('client_id', id)
       .order('uploaded_at', { ascending: false }),
+    adminClient
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('firm_id', (clientData as any).firm_id)
+      .eq('status', 'active')
+      .maybeSingle(),
   ])
 
   if (requestsResult.error) {
@@ -493,6 +500,9 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
     calculatedHealth = calculateHealthStatusFromData(requests, uploadedCount, now)
   }
 
+  const subPlan = subscriptionResult.data?.plan ?? 'trial'
+  const isPro = subPlan === 'professional' || subPlan === 'firm'
+
   return {
     ...clientData,
     health_status: calculatedHealth,
@@ -503,6 +513,7 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
       uploaded: uploadedCount,
       required: totalRequired,
     },
+    isPro,
   } as ClientWithRelations
 }
 

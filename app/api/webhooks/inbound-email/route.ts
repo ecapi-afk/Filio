@@ -198,6 +198,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Client account is archived" }, { status: 403 })
     }
 
+    // Verify firm has active Pro subscription before processing
+    const { data: subscription } = await supabaseAdmin
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('firm_id', client.firm_id)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    const isPro = subscription?.plan === 'professional' || subscription?.plan === 'firm'
+    if (!isPro) {
+      return NextResponse.json({ success: true, message: 'Accepted' })
+    }
+
     const attachments = payload.Attachments || []
 
     if (attachments.length === 0) {
