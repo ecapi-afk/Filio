@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { syncUploadToXero } from "@/lib/xero/sync-upload"
 
 export const dynamic = "force-dynamic"
 
@@ -68,13 +69,16 @@ function validateToken(request: NextRequest): boolean {
 }
 
 /**
- * Store one attachment in Supabase Storage and create an uploads record.
+ * Store one attachment in Supabase Storage, create an uploads record,
+ * queue a fallback job, then immediately attempt Xero sync.
  */
 async function processAttachment(
   clientId: string,
   firmId: string,
   attachment: PostmarkAttachment,
-  supabaseAdmin: Awaited<ReturnType<typeof createAdminClient>>
+  supabaseAdmin: Awaited<ReturnType<typeof createAdminClient>>,
+  xeroContactId?: string | null,
+  xeroUploadMode?: string | null
 ): Promise<{ success: boolean; uploadId?: string; error?: string }> {
   try {
     const fileBuffer = Buffer.from(attachment.Content, "base64")
@@ -112,14 +116,25 @@ async function processAttachment(
       return { success: false, error: recordError.message }
     }
 
-    // Queue xero_sync job — same pattern as portal upload confirm
-    await supabaseAdmin.from("jobs").insert({
+    // Queue fallback job in case immediate sync fails
+    const { data: jobData } = await supabaseAdmin.from("jobs").insert({
       client_id: clientId,
       upload_id: recordData.id,
       type: "xero_sync",
       status: "queued",
       attempts: 0,
-    })
+    }).select("id").single()
+
+    // Immediately attempt Xero sync — buffer already in memory, no download needed
+    syncUploadToXero({
+      uploadId: recordData.id,
+      jobId: jobData?.id,
+      firmId,
+      filename: attachment.Name,
+      fileBuffer,
+      xeroContactId,
+      uploadMode: xeroUploadMode,
+    }).catch(err => console.error('Immediate Xero sync failed, cron will retry:', err))
 
     return { success: true, uploadId: recordData.id }
   } catch (error) {
@@ -196,6 +211,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch Xero context for immediate sync
+    const { data: firmData } = await supabaseAdmin
+      .from("firms")
+      .select("xero_upload_mode")
+      .eq("id", client.firm_id)
+      .single()
+    const { data: clientXero } = await supabaseAdmin
+      .from("clients")
+      .select("xero_contact_id, xero_linked_contact_id")
+      .eq("id", client.id)
+      .single()
+    const xeroContactId = (clientXero as any)?.xero_contact_id ?? (clientXero as any)?.xero_linked_contact_id ?? null
+    const xeroUploadMode = (firmData as any)?.xero_upload_mode ?? 'attachments'
+
     const results: Array<{ filename: string; success: boolean; uploadId?: string; error?: string }> = []
 
     for (const attachment of attachments) {
@@ -203,7 +232,9 @@ export async function POST(request: NextRequest) {
         client.id,
         client.firm_id,
         attachment,
-        supabaseAdmin
+        supabaseAdmin,
+        xeroContactId,
+        xeroUploadMode
       )
       results.push({
         filename: attachment.Name,

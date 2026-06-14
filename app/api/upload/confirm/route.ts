@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { syncUploadToXero } from '@/lib/xero/sync-upload'
 
 // POST /api/upload/confirm
 export async function POST(request: NextRequest) {
@@ -80,14 +81,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to record upload' }, { status: 500 })
     }
 
-    // Create xero_sync job
-    await supabase.from('jobs').insert({
+    // Create fallback xero_sync job
+    const { data: jobData } = await supabase.from('jobs').insert({
       client_id: clientId,
       upload_id: upload.id,
       type: 'xero_sync',
       status: 'queued',
       attempts: 0,
-    })
+    }).select('id').single()
+
+    // Immediately attempt Xero sync — fire-and-forget, cron job is the fallback
+    if (storagePath) {
+      const adminForSync = await createAdminClient()
+      Promise.all([
+        adminForSync
+          .from('clients')
+          .select('firm_id, xero_contact_id, xero_linked_contact_id, firms(xero_upload_mode)')
+          .eq('id', clientId)
+          .single(),
+        adminForSync.storage.from('client-uploads').download(storagePath),
+      ]).then(async ([clientRes, fileRes]) => {
+        const c = clientRes.data as any
+        const fileData = fileRes.data
+        if (!c || !fileData) return
+        await syncUploadToXero({
+          uploadId: upload.id,
+          jobId: jobData?.id,
+          firmId: c.firm_id,
+          filename,
+          fileBuffer: await fileData.arrayBuffer(),
+          xeroContactId: c.xero_contact_id ?? c.xero_linked_contact_id ?? null,
+          uploadMode: c.firms?.xero_upload_mode ?? 'attachments',
+        })
+      }).catch(err => console.error('Immediate Xero sync failed, cron will retry:', err))
+    }
 
     // Update client's last_upload
     await supabase
