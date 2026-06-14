@@ -467,14 +467,20 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
   const uploadsData = (uploadsResult.data ?? []) as any[]
   const uploadedCount = uploadsResult.count || 0
 
-  // Compute next_deadline from already-fetched requests (no extra query)
-  const pendingRequests = requests
-    .filter((r: any) => r.deadline_date && r.deadline_date >= now)
+  // Compute next_deadline — overdue first, then nearest upcoming (mirrors refreshClientCache)
+  const overdueRequests = requests
+    .filter((r: any) => r.deadline_date && r.status !== 'Complete' && r.deadline_date < now)
     .sort((a: any, b: any) => a.deadline_date.localeCompare(b.deadline_date))
 
-  const nextDeadline = pendingRequests.length > 0
-    ? { date: pendingRequests[0].deadline_date, type: pendingRequests[0].title || 'Document Request' }
-    : null
+  const pendingRequests = requests
+    .filter((r: any) => r.deadline_date && r.status !== 'Complete' && r.deadline_date >= now)
+    .sort((a: any, b: any) => a.deadline_date.localeCompare(b.deadline_date))
+
+  const nextDeadline = overdueRequests[0]
+    ? { date: overdueRequests[0].deadline_date, type: overdueRequests[0].title || 'Document Request' }
+    : pendingRequests[0]
+      ? { date: pendingRequests[0].deadline_date, type: pendingRequests[0].title || 'Document Request' }
+      : null
 
   const totalRequired = requests.reduce((sum: number, r: any) => sum + (r.required_files || 1), 0) || 5
 
