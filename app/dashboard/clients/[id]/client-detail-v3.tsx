@@ -493,13 +493,6 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
           </div>
           <div className="flex gap-6 text-center">
             <div>
-              <p className="text-2xl font-bold text-gray-900 tabular-nums">
-                {client.upload_progress?.uploaded || 0}/{client.upload_progress?.required || 5}
-              </p>
-              <p className="text-xs text-gray-400">Files uploaded</p>
-            </div>
-            <div className="w-px bg-gray-100" />
-            <div>
               <p className="text-2xl font-bold text-gray-900 tabular-nums">{realUploads.length}</p>
               <p className="text-xs text-gray-400">Total uploads</p>
             </div>
