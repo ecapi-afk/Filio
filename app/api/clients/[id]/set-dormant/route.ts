@@ -44,8 +44,9 @@ export async function POST(
     if (error) throw error
 
     // Deactivate magic email alias so alias table stays consistent with client status
+    // HIGH-3: check errors — if cleanup fails, log and continue (dormant write already succeeded)
     const adminClient = await createAdminClient()
-    await Promise.all([
+    const [aliasResult, slugResult] = await Promise.all([
       adminClient
         .from('magic_email_aliases')
         .update({ is_active: false })
@@ -57,6 +58,12 @@ export async function POST(
         .eq('id', id)
         .not('magic_email_slug', 'is', null),
     ])
+    if (aliasResult.error) {
+      console.error('set-dormant: failed to deactivate magic email alias:', aliasResult.error)
+    }
+    if (slugResult.error) {
+      console.error('set-dormant: failed to clear magic_email_slug:', slugResult.error)
+    }
 
     await supabase.from('audit_logs').insert({
       firm_id: profile.firm_id,

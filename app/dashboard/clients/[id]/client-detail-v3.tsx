@@ -409,8 +409,6 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
       ? `${financialYearMonth} ${financialYearDay}`
       : financialYearMonth || null
 
-    console.log('Save clicked, clientId:', clientId)
-    console.log('VAT group:', vatQuarterGroup, 'FY end:', financialYearEnd)
     setSaving(true)
     try {
       const response = await fetch(`/api/clients/${clientId}/settings`, {
@@ -424,7 +422,6 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
           portal_language: portalLanguage,
         }),
       })
-      console.log('Response status:', response.status)
       if (response.ok) {
         toast.success('Client settings saved. Reloading...')
         // Use timeout to allow toast to show before reload
@@ -1396,7 +1393,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
           description={confirmConfig.description}
           confirmLabel={confirmConfig.confirmLabel}
           onConfirm={confirmConfig.onConfirm}
-          loading={regeneratingToken || regeneratingMagicEmail || !!completingRequestId}
+          loading={regeneratingToken || regeneratingMagicEmail || !!completingRequestId || settingStatus}
         />
       )}
     </div>

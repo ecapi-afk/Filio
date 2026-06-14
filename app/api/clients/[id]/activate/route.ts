@@ -67,6 +67,12 @@ export async function POST(
 
     if (error) throw error
 
+    // HIGH-2: single() errors if 0 rows matched, but add explicit guard for clarity
+    // This ensures admin client never touches magic emails for a client that failed firm check
+    if (!data) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     // Restore magic email alias if firm is on a Pro plan
     const plan = subscription?.plan
     if (plan && isPlanPro(plan)) {

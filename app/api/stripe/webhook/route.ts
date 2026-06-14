@@ -6,16 +6,16 @@ import Stripe from 'stripe'
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
-  const sig = request.headers.get('stripe-signature')!
+  // CRITICAL-1: explicit null guard — don't rely on SDK throwing for missing header
+  const sig = request.headers.get('stripe-signature')
+  if (!sig) {
+    return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 })
+  }
 
   let event: Stripe.Event
   try {
     const stripe = getStripe()
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     if (slugError) throw new Error(`Failed to clear magic email slugs: ${slugError.message}`)
   }
 
+  // MEDIUM-1: check upsert error so subscription state failures are visible
   const syncSubscription = async (
     firmId: string,
     plan: string,
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
   ) => {
     const clientLimit = PLAN_CLIENT_LIMITS[plan] ?? 20
 
-    await supabaseAdmin.from('subscriptions').upsert({
+    const { error } = await supabaseAdmin.from('subscriptions').upsert({
       firm_id: firmId,
       plan,
       status,
@@ -89,6 +90,8 @@ export async function POST(request: NextRequest) {
       stripe_customer_id: stripeCustomerId,
       current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
     }, { onConflict: 'firm_id' })
+
+    if (error) throw new Error(`Failed to upsert subscription: ${error.message}`)
 
     return clientLimit
   }
@@ -132,22 +135,38 @@ export async function POST(request: NextRequest) {
           .eq('stripe_subscription_id', sub.id)
           .single()
 
-        if (subData?.firm_id) {
-          const plan = (sub.items.data[0]?.price?.metadata?.plan as string) ?? subData.plan
-          const clientLimit = await syncSubscription(
-            subData.firm_id,
-            plan,
-            sub.id,
-            sub.customer as string,
-            sub.current_period_end,
-            sub.status === 'active' ? 'active' : 'canceled'
+        if (!subData?.firm_id) break
+
+        // CRITICAL-2: plan must come from price.metadata.plan (set on all Stripe prices).
+        // If absent (misconfigured price), only refresh current_period_end and log — don't
+        // guess the plan, which could silently skip magic email deactivation on downgrade.
+        const pricePlan = sub.items.data[0]?.price?.metadata?.plan as string | undefined
+
+        if (!pricePlan || !PLAN_CLIENT_LIMITS[pricePlan]) {
+          console.error(
+            `subscription.updated: price metadata missing 'plan' for sub ${sub.id}. ` +
+            `Keeping existing plan '${subData.plan}', only refreshing current_period_end.`
           )
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ current_period_end: new Date(sub.current_period_end * 1000).toISOString() })
+            .eq('stripe_subscription_id', sub.id)
+          break
+        }
 
-          await dormantExcessClients(subData.firm_id, clientLimit)
+        const clientLimit = await syncSubscription(
+          subData.firm_id,
+          pricePlan,
+          sub.id,
+          sub.customer as string,
+          sub.current_period_end,
+          sub.status === 'active' ? 'active' : 'canceled'
+        )
 
-          if (!isPlanPro(plan)) {
-            await deactivateMagicEmails(subData.firm_id)
-          }
+        await dormantExcessClients(subData.firm_id, clientLimit)
+
+        if (!isPlanPro(pricePlan)) {
+          await deactivateMagicEmails(subData.firm_id)
         }
         break
       }
@@ -166,17 +185,16 @@ export async function POST(request: NextRequest) {
             .update({ status: 'canceled' })
             .eq('firm_id', subData.firm_id)
 
+          // HIGH-4: deactivate magic emails and dormant excess clients back to trial limit
           await deactivateMagicEmails(subData.firm_id)
+          await dormantExcessClients(subData.firm_id, PLAN_CLIENT_LIMITS['trial'])
         }
         break
       }
     }
   } catch (err) {
     console.error('Stripe webhook handler error:', err)
-    return NextResponse.json(
-      { error: 'Webhook handler failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
