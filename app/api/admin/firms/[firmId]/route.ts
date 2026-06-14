@@ -26,7 +26,7 @@ export async function GET(
       .from('firms')
       .select(`
         id, name, created_at, suspended_at, admin_notes,
-        xero_tenant_id, xero_token_expires_at, timezone,
+        xero_connection_status, xero_org_name, xero_last_sync_at, timezone,
         subscriptions (
           plan, status, client_limit, current_period_end,
           stripe_subscription_id, stripe_customer_id
@@ -72,8 +72,6 @@ export async function GET(
 
   const f = firmRes.data as any
   const sub = Array.isArray(f.subscriptions) ? f.subscriptions[0] : f.subscriptions
-  const now = Date.now()
-  const tokenExpiry = f.xero_token_expires_at ? new Date(f.xero_token_expires_at).getTime() : null
 
   // Resolve owner email from auth.users (email not stored in profiles table)
   const profileUserId = (profileRes.data as any)?.id ?? null
@@ -105,11 +103,13 @@ export async function GET(
       suspendedAt: f.suspended_at,
       adminNotes: f.admin_notes,
       timezone: f.timezone,
-      xeroStatus: !f.xero_tenant_id
-        ? 'not_connected'
-        : tokenExpiry && tokenExpiry < now
+      xeroStatus: f.xero_connection_status === 'connected'
+        ? 'connected'
+        : f.xero_connection_status === 'token_expired'
           ? 'token_expired'
-          : 'connected',
+          : 'not_connected',
+      xeroOrgName: f.xero_org_name ?? null,
+      xeroLastSyncAt: f.xero_last_sync_at ?? null,
       subscription: sub
         ? {
             plan: sub.plan,

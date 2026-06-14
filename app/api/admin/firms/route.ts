@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   // 1. Fetch firms (paginated, no nested join to avoid FK detection issues)
   const { data: firms, count, error: firmError } = await admin
     .from('firms')
-    .select('id, name, created_at, suspended_at, xero_tenant_id, xero_token_expires_at', { count: 'exact' })
+    .select('id, name, created_at, suspended_at, xero_connection_status', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -118,13 +118,11 @@ export async function GET(request: NextRequest) {
   // Build result rows
   let result = firms.map((f: any) => {
     const sub = subByFirm[f.id] ?? null
-    const now = Date.now()
-    const tokenExpiry = f.xero_token_expires_at ? new Date(f.xero_token_expires_at).getTime() : null
-    const xeroStatus = !f.xero_tenant_id
-      ? 'not_connected'
-      : tokenExpiry && tokenExpiry < now
+    const xeroStatus = f.xero_connection_status === 'connected'
+      ? 'connected'
+      : f.xero_connection_status === 'token_expired'
         ? 'token_expired'
-        : 'connected'
+        : 'not_connected'
 
     return {
       id: f.id,
