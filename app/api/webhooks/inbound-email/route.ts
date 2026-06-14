@@ -128,6 +128,12 @@ async function processAttachment(
       uploadMode: xeroUploadMode,
     })
 
+    // Delete from storage — we don't retain client files after sync attempt
+    await supabaseAdmin.storage
+      .from('client-uploads')
+      .remove([storagePath])
+      .catch(err => console.error('Storage cleanup failed:', err))
+
     if (!syncResult.success) {
       return {
         filename: attachment.Name,

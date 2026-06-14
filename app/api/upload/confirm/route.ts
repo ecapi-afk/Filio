@@ -108,6 +108,12 @@ export async function POST(request: NextRequest) {
           uploadMode: c.firms?.xero_upload_mode ?? 'attachments',
         })
 
+        // Delete from storage — we don't retain client files after sync attempt
+        await adminForSync.storage
+          .from('client-uploads')
+          .remove([storagePath])
+          .catch(err => console.error('Storage cleanup failed:', err))
+
         if (!syncResult.success && isPortalUpload && c.email) {
           const activeLink = c.short_links?.find((l: any) => l.is_active)
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://filio.uk'
