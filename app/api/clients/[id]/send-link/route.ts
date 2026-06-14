@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendMagicLinkEmail } from '@/lib/email/postmark'
+import { regenerateShortCode } from '@/lib/magic/generator'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -30,7 +31,6 @@ export async function POST(
   }
 
   try {
-    // Get client with firm info
     const { data: client, error: clientError } = await supabase
       .from('clients')
       .select(`
@@ -38,7 +38,6 @@ export async function POST(
         name,
         email,
         portal_email,
-        portal_token,
         firms (
           name
         )
@@ -51,36 +50,33 @@ export async function POST(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Get or generate portal token if needed
-    let token = client.portal_token
-    if (!token) {
-      const { randomBytes } = await import('crypto')
-      token = randomBytes(32).toString('hex')
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-
-      await supabaseAdmin
-        .from('portal_tokens')
-        .insert({
-          client_id: id,
-          token,
-          expires_at: expiresAt,
-        })
-
-      await supabaseAdmin
-        .from('clients')
-        .update({ portal_token: token })
-        .eq('id', id)
-    }
-
-    const firmName = (client.firms as any)?.name || 'Your Accountant'
-    const uploadLink = `${APP_URL}/portal/${token}`
-    const recipientEmail = client.portal_email || client.email
-
+    const recipientEmail = (client as any).portal_email || (client as any).email
     if (!recipientEmail) {
       return NextResponse.json({ error: 'No email address available' }, { status: 400 })
     }
 
-    // Send the magic link email
+    // Look up the active short link for this client
+    const { data: activeLink } = await supabaseAdmin
+      .from('short_links')
+      .select('short_code')
+      .eq('client_id', id)
+      .eq('is_active', true)
+      .single()
+
+    let shortCode = activeLink?.short_code
+
+    // If no active short link exists, generate one
+    if (!shortCode) {
+      shortCode = await regenerateShortCode(id) ?? undefined
+    }
+
+    if (!shortCode) {
+      return NextResponse.json({ error: 'Failed to get upload link' }, { status: 500 })
+    }
+
+    const firmName = (client.firms as any)?.name || 'Your Accountant'
+    const uploadLink = `${APP_URL}/m/${shortCode}`
+
     await sendMagicLinkEmail({
       to: recipientEmail,
       clientName: client.name,
@@ -88,13 +84,12 @@ export async function POST(
       uploadLink,
     })
 
-    // Audit log
     await supabase.from('audit_logs').insert({
       firm_id: profile.firm_id,
       client_id: id,
       actor: user.id,
       action: 'magic_link_sent',
-      metadata: { sent_to: recipientEmail },
+      metadata: { sent_to: recipientEmail, short_code: shortCode },
     })
 
     return NextResponse.json({ success: true })

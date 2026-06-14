@@ -40,11 +40,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
     }
 
-    // Check if expired
-    if (new Date(portalToken.expires_at) < new Date()) {
-      return NextResponse.json({ error: 'Token expired' }, { status: 410 })
-    }
-
     const client = portalToken.clients as any
     const firm = client?.firms
 

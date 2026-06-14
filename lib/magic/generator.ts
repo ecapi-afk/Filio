@@ -199,7 +199,7 @@ export async function createMagicCredentials(
   // Generate portal token (32 bytes hex) using our safe randomBytes generator
   const tokenBytes = getRandomBytes(32)
   const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+  const expiresAt = new Date('2099-12-31T23:59:59Z').toISOString()
 
   // Create portal token with all required fields
   const { data: portalToken, error: tokenError } = await supabase
@@ -287,7 +287,7 @@ export async function regenerateShortCode(
   // Generate new portal token using our safe randomBytes generator
   const tokenBytes = getRandomBytes(32)
   const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  const expiresAt = new Date('2099-12-31T23:59:59Z').toISOString()
 
   // Create new portal token with all required fields
   const { data: portalToken, error: tokenError } = await supabase
