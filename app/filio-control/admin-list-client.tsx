@@ -52,18 +52,26 @@ export default function AdminListClient() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const limit = 20
 
   const fetchFirms = useCallback(async () => {
     setLoading(true)
+    setApiError(null)
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
       if (search) params.set('search', search)
       const res = await fetch(`/api/admin/firms?${params}`)
       const data = await res.json()
+      if (!res.ok) {
+        setApiError(`${res.status}: ${data.error ?? 'Unknown error'}`)
+        return
+      }
       setFirms(data.firms ?? [])
       setTotal(data.total ?? 0)
       if (data.stats) setStats(data.stats)
+    } catch (e: any) {
+      setApiError(e.message ?? 'Network error')
     } finally {
       setLoading(false)
     }
@@ -127,6 +135,13 @@ export default function AdminListClient() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* API error banner */}
+        {apiError && (
+          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-mono">
+            API Error: {apiError}
           </div>
         )}
 
