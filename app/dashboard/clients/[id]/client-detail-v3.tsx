@@ -232,6 +232,13 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
     onConfirm: () => Promise<void>
   } | null>(null)
 
+  // Dormant / activate state
+  const [isDormant, setIsDormant] = useState((client as any).management_status === 'dormant')
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false)
+  const [settingStatus, setSettingStatus] = useState(false)
+  const [quotaExceededOpen, setQuotaExceededOpen] = useState(false)
+  const [quotaLimit, setQuotaLimit] = useState(20)
+
   // Loading states for Mark as Complete buttons
   const [completingRequestId, setCompletingRequestId] = useState<string | null>(null)
 
@@ -263,6 +270,62 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
     })
   }
 
+  const handleActivate = async () => {
+    setSettingStatus(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/activate`, { method: 'POST' })
+      if (res.ok) {
+        setIsDormant(false)
+        toast.success('Client reactivated')
+      } else {
+        const body = await res.json().catch(() => ({}))
+        if (body.error === 'quota_exceeded') {
+          setQuotaLimit(body.limit ?? 20)
+          setQuotaExceededOpen(true)
+        } else {
+          toast.error('Failed to reactivate client')
+        }
+      }
+    } catch {
+      toast.error('Failed to reactivate client')
+    } finally {
+      setSettingStatus(false)
+    }
+  }
+
+  const handleSetDormant = async () => {
+    setSettingStatus(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/set-dormant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'manual' }),
+      })
+      if (res.ok) {
+        setIsDormant(true)
+        toast.success('Client marked as dormant')
+      } else {
+        toast.error('Failed to set client dormant')
+      }
+    } catch {
+      toast.error('Failed to set client dormant')
+    } finally {
+      setSettingStatus(false)
+      setConfirmOpen(false)
+    }
+  }
+
+  const openSetDormantConfirm = () => {
+    setShowOverflowMenu(false)
+    setConfirmConfig({
+      title: 'Set Client to Dormant?',
+      description: `${client.name} will be marked as dormant. Their portal will remain accessible but they will be excluded from active reminders and reports. You can reactivate them at any time.`,
+      confirmLabel: 'Set Dormant',
+      onConfirm: handleSetDormant,
+    })
+    setConfirmOpen(true)
+  }
+
   // Get active short code from short_links array
   const shortLinksData = (client as any).short_links
   const activeShortLink = shortLinksData?.find((sl: any) => sl.is_active)
@@ -283,9 +346,6 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
       setFinancialYearDay('')
     }
   }, [financialYearMonth, availableDays, financialYearDay])
-
-  // Debug: log short links data
-  console.log('Client short_links:', shortLinksData, 'shortCode:', shortCode, 'portalUrl:', portalUrl)
 
   const handleRegenerateToken = async () => {
     setRegeneratingToken(true)
@@ -592,6 +652,40 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                   <p className="text-xs text-gray-400">
                     {headerDeadlines[1].days < 0 ? `${headerDeadlines[1].label} overdue` : `Until ${headerDeadlines[1].label}`}
                   </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Overflow menu */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowOverflowMenu(v => !v)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            {showOverflowMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowOverflowMenu(false)} />
+                <div className="absolute right-0 top-9 z-20 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1 overflow-hidden">
+                  {isDormant ? (
+                    <button
+                      onClick={() => { setShowOverflowMenu(false); handleActivate() }}
+                      disabled={settingStatus}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      <ToggleLeft size={14} className="text-gray-400" /> Reactivate Client
+                    </button>
+                  ) : (
+                    <button
+                      onClick={openSetDormantConfirm}
+                      disabled={settingStatus}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      <ToggleRight size={14} className="text-emerald-500" /> Set as Dormant
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -1259,6 +1353,40 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
           </div>
         </div>
       )}
+      {/* Quota Exceeded Dialog */}
+      {quotaExceededOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                <AlertTriangle size={16} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Client Limit Reached</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Your plan allows up to <strong>{quotaLimit} active clients</strong>. Set another client to dormant first, or upgrade your plan to reactivate this client.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setQuotaExceededOpen(false)}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <a
+                href="/dashboard/settings?tab=billing"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+                style={{ background: '#059669' }}
+              >
+                Upgrade Plan
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirm Dialog */}
       {confirmConfig && (
         <ConfirmDialog

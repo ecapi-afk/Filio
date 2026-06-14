@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // POST /api/clients/[id]/set-dormant
 export async function POST(
@@ -42,7 +43,21 @@ export async function POST(
 
     if (error) throw error
 
-    // Audit log
+    // Deactivate magic email alias so alias table stays consistent with client status
+    const adminClient = await createAdminClient()
+    await Promise.all([
+      adminClient
+        .from('magic_email_aliases')
+        .update({ is_active: false })
+        .eq('client_id', id)
+        .eq('is_active', true),
+      adminClient
+        .from('clients')
+        .update({ magic_email_slug: null })
+        .eq('id', id)
+        .not('magic_email_slug', 'is', null),
+    ])
+
     await supabase.from('audit_logs').insert({
       firm_id: profile.firm_id,
       client_id: id,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { isPlanPro } from '@/lib/constants/plans'
 
 // POST /api/clients/[id]/activate
 export async function POST(
@@ -14,7 +16,6 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
   const { data: profile } = await db
@@ -28,6 +29,7 @@ export async function POST(
   }
 
   // Quota check: count current active clients vs plan limit
+  // Only consider active subscriptions — canceled subs fall back to trial limit (20)
   const [{ count: activeCount }, { data: subscription }] = await Promise.all([
     db
       .from('clients')
@@ -36,8 +38,9 @@ export async function POST(
       .eq('management_status', 'active'),
     db
       .from('subscriptions')
-      .select('client_limit')
+      .select('client_limit, plan')
       .eq('firm_id', profile.firm_id)
+      .eq('status', 'active')
       .maybeSingle(),
   ])
 
@@ -55,7 +58,7 @@ export async function POST(
       .update({
         management_status: 'active',
         activated_at: new Date().toISOString(),
-        dormant_reminded_at: null, // Reset so dormant cycle restarts on next dormant
+        dormant_reminded_at: null,
       })
       .eq('id', id)
       .eq('firm_id', profile.firm_id)
@@ -63,6 +66,33 @@ export async function POST(
       .single()
 
     if (error) throw error
+
+    // Restore magic email alias if firm is on a Pro plan
+    const plan = subscription?.plan
+    if (plan && isPlanPro(plan)) {
+      const adminClient = await createAdminClient()
+      const { data: aliasRecord } = await adminClient
+        .from('magic_email_aliases')
+        .select('alias')
+        .eq('client_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (aliasRecord?.alias) {
+        await Promise.all([
+          adminClient
+            .from('magic_email_aliases')
+            .update({ is_active: true })
+            .eq('client_id', id)
+            .eq('alias', aliasRecord.alias),
+          adminClient
+            .from('clients')
+            .update({ magic_email_slug: aliasRecord.alias })
+            .eq('id', id),
+        ])
+      }
+    }
 
     await db.from('audit_logs').insert({
       firm_id: profile.firm_id,
