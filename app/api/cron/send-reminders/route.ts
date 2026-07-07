@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendReminderEmail } from '@/lib/email/postmark'
-
-// Cron job: send scheduled reminders
-// Runs daily at 8:30am (configured in vercel.json)
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+import { getClientUploadLink } from '@/lib/magic/get-upload-link'
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -28,7 +24,7 @@ export async function GET(request: NextRequest) {
           id,
           name,
           portal_email,
-          portal_token,
+          management_status,
           firms (
             name
           )
@@ -51,12 +47,20 @@ export async function GET(request: NextRequest) {
         id: string
         name: string
         portal_email: string | null
-        portal_token: string | null
+        management_status: string | null
         firms: { name: string } | null
       } | null
 
-      if (!client?.portal_email) {
-        // Skip — no email address to send to
+      // Skip non-active clients — cancel the job
+      if (client?.management_status !== 'active') {
+        await supabaseAdmin
+          .from('reminder_jobs')
+          .update({ status: 'cancelled', cancel_reason: 'Client not active' })
+          .eq('id', reminder.id)
+        continue
+      }
+
+      if (!client.portal_email) {
         await supabaseAdmin
           .from('reminder_jobs')
           .update({ status: 'cancelled', cancel_reason: 'No email address' })
@@ -65,9 +69,7 @@ export async function GET(request: NextRequest) {
       }
 
       const firmName = client.firms?.name || 'Your Accountant'
-      const uploadLink = client.portal_token
-        ? `${APP_URL}/portal/${client.portal_token}`
-        : `${APP_URL}/portal`
+      const uploadLink = await getClientUploadLink(supabaseAdmin, client.id)
 
       try {
         await sendReminderEmail({

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getXeroContacts, ensureFreshAccessToken, type XeroContact } from '@/lib/xero/client'
 import { createMagicCredentials } from '@/lib/magic/generator'
+import { isTrialExpired } from '@/lib/auth/trial'
 
 // POST /api/xero/import - Import selected Xero contacts
 export async function POST(request: Request) {
@@ -26,6 +27,10 @@ export async function POST(request: Request) {
 
   const firmId = profile.firm_id
 
+  if (await isTrialExpired(supabase, firmId)) {
+    return NextResponse.json({ error: 'trial_expired' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
     const { contactIds } = body as { contactIds: string[] }
@@ -45,8 +50,6 @@ export async function POST(request: Request) {
     // Xero API returns uppercase field names: ContactID, Name, EmailAddress
     const contactsToImport = allContacts.filter(c => contactIds.includes(c.ContactID))
 
-    console.log('[POST /api/xero/import] contactIds to import:', contactIds)
-    console.log('[POST /api/xero/import] matching contacts:', contactsToImport.length)
 
     // Get existing clients to avoid duplicates
     const { data: existingClients } = await supabase
@@ -94,7 +97,6 @@ export async function POST(request: Request) {
       }
 
       const phone = extractPhone(contact.Phones)
-      console.log('[POST /api/xero/import] Importing:', contact.Name, contact.EmailAddress, contact.ContactID)
 
       // Insert client using admin client to bypass RLS, applying firm global defaults
       const { data: insertedClient, error: clientError } = await supabaseAdmin
@@ -124,12 +126,7 @@ export async function POST(request: Request) {
         errors.push(`Failed to import ${contact.Name}: ${clientError.message}`)
       } else if (insertedClient) {
         // Create Magic Link (short_code) and Magic Email alias in proper tables
-        const { shortCode, magicEmailAlias } = await createMagicCredentials(
-          insertedClient.id,
-          contact.Name,
-          firmId
-        )
-        console.log('[POST /api/xero/import] Created magic credentials:', shortCode, magicEmailAlias)
+        await createMagicCredentials(insertedClient.id, contact.Name, firmId)
         imported++
       }
     }

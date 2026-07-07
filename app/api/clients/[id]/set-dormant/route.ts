@@ -72,6 +72,16 @@ export async function POST(
       console.error('set-dormant: failed to clear magic_email_slug:', slugResult.error)
     }
 
+    // Cancel all pending reminder jobs — dormant clients must not receive reminders
+    const { error: cancelError } = await adminClient
+      .from('reminder_jobs')
+      .update({ status: 'cancelled', cancel_reason: 'Client set to dormant' })
+      .eq('client_id', id)
+      .eq('status', 'scheduled')
+    if (cancelError) {
+      console.error('set-dormant: failed to cancel reminder jobs:', cancelError)
+    }
+
     await supabase.from('audit_logs').insert({
       firm_id: profile.firm_id,
       client_id: id,

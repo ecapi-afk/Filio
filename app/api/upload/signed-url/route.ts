@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isTrialExpired } from '@/lib/auth/trial'
 
 function generateCleanFilename(
   clientName: string,
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     const supabase = token ? await createAdminClient() : await createClient()
 
     let channel = 'manual'
+    let manualFirmId: string | null = null
 
     if (token) {
       channel = 'portal'
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
         .eq('client_id', clientId)
         .gt('expires_at', new Date().toISOString())
         .single()
-        
+
       if (!portalToken) {
         return NextResponse.json({ error: 'Invalid or expired token' }, { status: 403 })
       }
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
-      
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('firm_id')
@@ -60,8 +62,12 @@ export async function POST(request: NextRequest) {
       if (!profile?.firm_id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
-      
-      // We will verify client firm_id belongs to user in the client check below
+
+      if (await isTrialExpired(supabase, profile.firm_id)) {
+        return NextResponse.json({ error: 'trial_expired' }, { status: 403 })
+      }
+
+      manualFirmId = profile.firm_id
     }
 
     // Get client info
@@ -81,10 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!token) {
-      // If manual, finish verifying client belongs to user's firm
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: profile } = await supabase.from('profiles').select('firm_id').eq('id', user?.id).single()
-      if (profile?.firm_id !== client.firm_id) {
+      // Verify client belongs to user's firm using the firm_id captured above
+      if (manualFirmId !== client.firm_id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }

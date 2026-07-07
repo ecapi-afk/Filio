@@ -62,10 +62,16 @@ export async function GET(
 
   if (!xeroRes.ok) {
     const errText = await xeroRes.text()
-    return NextResponse.json(
-      { error: `Xero download failed: ${xeroRes.status} ${errText}` },
-      { status: 502 }
-    )
+    console.error('Xero download failed:', xeroRes.status, errText)
+
+    const friendlyError =
+      xeroRes.status === 404
+        ? 'This file could not be found in Xero. It may have been deleted or the demo/organisation data was reset.'
+        : xeroRes.status === 401 || xeroRes.status === 403
+        ? 'Xero access has expired or been revoked. Please reconnect Xero and try again.'
+        : 'Could not download the file from Xero right now. Please try again later.'
+
+    return NextResponse.json({ error: friendlyError }, { status: 502 })
   }
 
   const contentType = xeroRes.headers.get('content-type') || 'application/octet-stream'

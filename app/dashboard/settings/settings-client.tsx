@@ -42,9 +42,8 @@ interface Firm {
   xero_refresh_token_expires_at: string | null;
   reply_to_email: string | null;
   default_reminder_days: number[] | null;
-  auto_reminders_enabled: boolean;
   default_client_language: string | null;
-  timezone: string | null;
+  timezone: string;
 }
 
 interface Subscription {
@@ -1271,7 +1270,7 @@ function NotificationsSettings() {
 
 function GlobalDefaultsSettings({ firm }: { firm: Firm | null }) {
   const [reminderDays, setReminderDays] = useState<number[]>(firm?.default_reminder_days || [30, 14, 7, 1]);
-  const [autoReminders, setAutoReminders] = useState(firm?.auto_reminders_enabled ?? true);
+  const [autoReminders, setAutoReminders] = useState(true);
   const [replyToEmail, setReplyToEmail] = useState(firm?.reply_to_email || '');
   const [language, setLanguage] = useState(firm?.default_client_language || 'en');
   const [timezone, setTimezone] = useState(firm?.timezone || 'Europe/London');

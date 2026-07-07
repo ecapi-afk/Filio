@@ -33,6 +33,8 @@ type StatCardProps = {
   sparklineColor?: string
   clientTags?: string[]
   showProgressBar?: boolean
+  valueColor?: string
+  subLabelColor?: string
 }
 
 function Sparkline({ data, color }: { data: number[], color: string }) {

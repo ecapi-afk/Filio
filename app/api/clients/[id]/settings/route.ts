@@ -119,7 +119,13 @@ export async function PATCH(
     } = body
 
     // Build updates object
-    const updates: Record<string, any> = {}
+    const updates: {
+      vat_quarter_group?: string
+      financial_year_end?: string
+      auto_reminders_enabled?: boolean
+      reminder_days_before?: number[] | null
+      portal_email?: string | null
+    } = {}
 
     if (vat_quarter_group !== undefined) {
       updates.vat_quarter_group = vat_quarter_group

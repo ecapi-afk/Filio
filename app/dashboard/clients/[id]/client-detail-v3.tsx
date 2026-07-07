@@ -22,6 +22,7 @@ import {
   getCategoryBadgeColor,
   getClientAvatarBg,
   DOC_CATEGORIES,
+  type DocCategory,
 } from '@/lib/file-types'
 import { Card } from '@/components/ui/card'
 
@@ -120,6 +121,10 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
   const [autoReminder, setAutoReminder] = useState(client.auto_reminders_enabled ?? true)
   const [vatQuarterGroup, setVatQuarterGroup] = useState(client.vat_quarter_group || 'A')
 
+  // Reminder / magic link sending state — tracks which deadline type is sending (null = idle)
+  const [sendingReminderFor, setSendingReminderFor] = useState<string | null>(null)
+  const [sendingMagicLink, setSendingMagicLink] = useState(false)
+
   // Notes state
   const [notes, setNotes] = useState(client.internal_notes || '')
   const [savingNotes, setSavingNotes] = useState(false)
@@ -128,21 +133,34 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
   // Upload filter state
   const [uploadFilter, setUploadFilter] = useState<string>('All')
 
+  // Tracks which upload is currently being downloaded (null = idle)
+  const [downloadingUploadId, setDownloadingUploadId] = useState<string | null>(null)
+
   // Audit log state
   const [auditLogs, setAuditLogs] = useState<{ id: string; action: string; metadata: Record<string, unknown>; timestamp: string; actor: string }[]>([])
   const [auditLoading, setAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState(false)
 
-  useEffect(() => {
-    if (activeTab !== 'audit') return
+  const loadAuditLogs = () => {
     setAuditLoading(true)
+    setAuditError(false)
     fetch(`/api/clients/${clientId}/audit-logs`)
       .then(r => r.json())
-      .then(d => setAuditLogs(d.logs ?? []))
-      .catch(() => {})
+      .then(d => {
+        if (d.error) throw new Error(d.error)
+        setAuditLogs(d.logs ?? [])
+      })
+      .catch(() => setAuditError(true))
       .finally(() => setAuditLoading(false))
+  }
+
+  useEffect(() => {
+    if (activeTab !== 'audit' && activeTab !== 'reminders') return
+    loadAuditLogs()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, clientId])
 
-  const formatAuditLabel = (action: string, metadata: Record<string, unknown>): string => {
+  const formatAuditLabel = (action: string, metadata: Record<string, unknown>): { label: string; detail?: string } => {
     const labels: Record<string, string> = {
       client_reactivated: 'Client reactivated',
       client_set_dormant: 'Client set to dormant',
@@ -160,27 +178,89 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
       credentials_generated: 'Credentials generated',
       portal_token_regenerated: 'Portal link regenerated',
     }
-    const base = labels[action] ?? action.replace(/_/g, ' ')
-    const reason = metadata?.reason as string | undefined
-    return reason ? `${base} — ${reason}` : base
+    const label = labels[action] ?? action.replace(/_/g, ' ')
+    const detail = metadata?.reason as string | undefined
+    return { label, detail }
   }
+
+  const escapeHtml = (str: string) =>
+    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
   const handleExportAuditPdf = () => {
     const rows = auditLogs.map(l => `
       <tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;">${formatAuditLabel(l.action, l.metadata)}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(formatAuditLabel(l.action, l.metadata).label)}</td>
         <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${new Date(l.timestamp).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${l.actor}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${escapeHtml(l.actor)}</td>
       </tr>`).join('')
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Audit Log — ${client.name}</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Audit Log — ${escapeHtml(client.name)}</title>
       <style>body{font-family:sans-serif;padding:32px}h1{font-size:18px;margin-bottom:4px}p{font-size:12px;color:#6b7280;margin-bottom:24px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:8px 12px;background:#f9fafb;font-size:11px;color:#374151;border-bottom:2px solid #e5e7eb}</style>
       </head><body>
-      <h1>Audit Log — ${client.name}</h1>
+      <h1>Audit Log — ${escapeHtml(client.name)}</h1>
       <p>Exported ${new Date().toLocaleDateString('en-GB')} · ${auditLogs.length} entries</p>
       <table><thead><tr><th>Event</th><th>Date &amp; Time</th><th>Actor</th></tr></thead><tbody>${rows}</tbody></table>
       </body></html>`
     const w = window.open('', '_blank')
     if (w) { w.document.write(html); w.document.close(); w.print() }
+  }
+
+  // H1: real API calls for send reminder and magic link
+  const handleSendReminder = async (deadlineType?: string, deadlineDate?: string) => {
+    const key = deadlineType || 'general'
+    setSendingReminderFor(key)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/send-reminder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deadline_type: deadlineType || 'Document Request',
+          deadline_date: deadlineDate || 'soon',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send reminder')
+      toast.success(`Reminder sent to ${client.name}`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send reminder')
+    } finally {
+      setSendingReminderFor(null)
+    }
+  }
+
+  const handleDownloadUpload = async (uploadId: string, filename: string) => {
+    setDownloadingUploadId(uploadId)
+    try {
+      const res = await fetch(`/api/uploads/${uploadId}/download`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to download file')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download file')
+    } finally {
+      setDownloadingUploadId(null)
+    }
+  }
+
+  const handleSendMagicLink = async () => {
+    setSendingMagicLink(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/send-link`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send magic link')
+      toast.success('Magic link sent!')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send magic link')
+    } finally {
+      setSendingMagicLink(false)
+    }
   }
 
   // Parse financial year end from "Month Day" format
@@ -219,7 +299,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
   const availableDays = getAvailableDays(financialYearMonth)
 
   const [portalEmail, setPortalEmail] = useState(client.portal_email || client.email || '')
-  const [portalLanguage, setPortalLanguage] = useState('en')
+  const [portalLanguage, setPortalLanguage] = useState((client as any).portal_language || 'en')
   const [saving, setSaving] = useState(false)
   const [regeneratingToken, setRegeneratingToken] = useState(false)
   const [regeneratingMagicEmail, setRegeneratingMagicEmail] = useState(false)
@@ -342,7 +422,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
 
   // Reset day if current day is not available for the selected month
   useEffect(() => {
-    if (financialYearMonth && !availableDays.includes(financialYearDay)) {
+    if (financialYearMonth && financialYearDay && !availableDays.includes(financialYearDay)) {
       setFinancialYearDay('')
     }
   }, [financialYearMonth, availableDays, financialYearDay])
@@ -352,8 +432,8 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
     try {
       const res = await fetch(`/api/clients/${clientId}/regenerate-token`, { method: 'POST' })
       if (res.ok) {
-        toast.success('Portal link regenerated! Reloading...')
-        setTimeout(() => window.location.reload(), 1000)
+        toast.success('Portal link regenerated!')
+        router.refresh()
       } else {
         toast.error('Failed to regenerate token')
       }
@@ -370,8 +450,8 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
     try {
       const res = await fetch(`/api/clients/${clientId}/regenerate-magic-email`, { method: 'POST' })
       if (res.ok) {
-        toast.success('Magic email regenerated! Reloading...')
-        setTimeout(() => window.location.reload(), 1000)
+        toast.success('Magic email regenerated!')
+        router.refresh()
       } else {
         toast.error('Failed to regenerate magic email')
       }
@@ -423,18 +503,12 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
         }),
       })
       if (response.ok) {
-        toast.success('Client settings saved. Reloading...')
-        // Use timeout to allow toast to show before reload
-        setTimeout(() => {
-          window.location.reload()
-        }, 500)
+        toast.success('Client settings saved.')
+        router.refresh()
       } else {
-        const errorText = await response.text()
-        console.error('Error response:', errorText)
         toast.error('Failed to save settings')
       }
-    } catch (error) {
-      console.error('Fetch error:', error)
+    } catch {
       toast.error('Failed to save settings')
     } finally {
       setSaving(false)
@@ -469,6 +543,36 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
       toast.error('Failed to save notes')
     } finally {
       setSavingNotes(false)
+    }
+  }
+
+  const handleResetSettings = () => {
+    const fy = parseFinancialYearEnd(client.financial_year_end || '')
+    setVatQuarterGroup(client.vat_quarter_group || 'A')
+    setFinancialYearMonth(fy.month)
+    setFinancialYearDay(fy.day)
+    setAutoReminder(client.auto_reminders_enabled ?? true)
+    setPortalEmail(client.portal_email || client.email || '')
+    setPortalLanguage((client as any).portal_language || 'en')
+    toast.success('Reset to saved values')
+  }
+
+  const handleToggleAutoReminder = async () => {
+    const newValue = !autoReminder
+    setAutoReminder(newValue)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_reminders_enabled: newValue }),
+      })
+      if (!res.ok) {
+        setAutoReminder(!newValue)
+        toast.error('Failed to update auto-reminder setting')
+      }
+    } catch {
+      setAutoReminder(!newValue)
+      toast.error('Failed to update auto-reminder setting')
     }
   }
 
@@ -515,9 +619,6 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
   const formatDeadlineDateShort = (dateStr: string) =>
     new Date(dateStr).toISOString().slice(0, 10)
 
-  const DOC_CATEGORIES = ['Receipt', 'Invoice', 'Bank Statement', 'Payslip', 'Contract', 'Other', 'Uncategorized'] as const
-  type DocCategory = typeof DOC_CATEGORIES[number]
-
   const classifyUpload = (filename: string): DocCategory => {
     const f = filename.toLowerCase()
     if (f.includes('bank') || f.includes('statement')) return 'Bank Statement'
@@ -542,18 +643,19 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
 
   const categoryCounts: Record<string, number> = { All: realUploads.length }
   for (const cat of DOC_CATEGORIES) {
-    categoryCounts[cat] = realUploads.filter(u => classifyUpload(u.filename) === cat).length
+    categoryCounts[cat] = realUploads.filter(u => getDisplayFileType(u) === cat).length
   }
 
   const filteredUploads = uploadFilter === 'All'
     ? realUploads
-    : realUploads.filter(u => classifyUpload(u.filename) === uploadFilter)
+    : realUploads.filter(u => getDisplayFileType(u) === uploadFilter)
 
   // formatFileSize, getExt, getExtBadgeBg, formatUploadedAt, getCategoryBadgeColor
   // are imported from @/lib/file-types
 
-  const deadlineDays = client.next_deadline ?
-    Math.ceil((new Date(client.next_deadline.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
+  const deadlineDays = client.next_deadline?.date
+    ? Math.ceil((new Date(client.next_deadline.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : 0
 
   const headerDeadlines: Array<{ days: number; label: string }> = []
   if (annualRequest) {
@@ -743,11 +845,13 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                       {/* Bottom buttons */}
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => toast.success(`Reminder sent to ${client.name}`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
+                          onClick={() => handleSendReminder('Annual Accounts', annualRequest.deadline_date)}
+                          disabled={sendingReminderFor !== null}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
                           style={{ background: '#059669' }}
                         >
-                          <Bell size={12} /> Send Reminder
+                          {sendingReminderFor === 'Annual Accounts' ? <RefreshCw size={12} className="animate-spin" /> : <Bell size={12} />}
+                          {sendingReminderFor === 'Annual Accounts' ? 'Sending...' : 'Send Reminder'}
                         </button>
                         <button
                           onClick={() => showCompleteConfirm(annualRequest.id, 'Annual Accounts')}
@@ -806,11 +910,13 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                       {/* Bottom buttons */}
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => toast.success(`Reminder sent to ${client.name}`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
+                          onClick={() => handleSendReminder('VAT Return', vatRequest.deadline_date)}
+                          disabled={sendingReminderFor !== null}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
                           style={{ background: '#059669' }}
                         >
-                          <Bell size={12} /> Send Reminder
+                          {sendingReminderFor === 'VAT Return' ? <RefreshCw size={12} className="animate-spin" /> : <Bell size={12} />}
+                          {sendingReminderFor === 'VAT Return' ? 'Sending...' : 'Send Reminder'}
                         </button>
                         <button
                           onClick={() => showCompleteConfirm(vatRequest.id, 'VAT Return')}
@@ -970,8 +1076,13 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                 </div>
               )}
               <div className="mt-4 space-y-2">
-                <button onClick={() => toast.success('Magic Link sent!')} className="btn-primary w-full justify-center text-xs py-2">
-                  <Mail size={13} /> Send Magic Link
+                <button
+                  onClick={handleSendMagicLink}
+                  disabled={sendingMagicLink}
+                  className="btn-primary w-full justify-center text-xs py-2 disabled:opacity-50"
+                >
+                  {sendingMagicLink ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
+                  {sendingMagicLink ? 'Sending...' : 'Send Magic Link'}
                 </button>
                 <button
                   onClick={openRegenerateTokenConfirm}
@@ -986,22 +1097,30 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
 
             <div className="filio-card p-5 relative overflow-hidden">
               <h3 className="text-sm font-bold text-gray-900 mb-3">Magic Email</h3>
-              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-200 mb-3">
-                <Mail size={13} className="text-gray-400 shrink-0" />
-                <span className="text-xs text-gray-600 truncate flex-1">{client.magic_email_slug || 'Not configured'}</span>
-                <button onClick={() => {
-                  if (client.magic_email_slug) {
-                    navigator.clipboard.writeText(client.magic_email_slug)
-                    toast.success('Copied!')
-                  }
-                }}>
-                  <Copy size={13} className="text-gray-400 hover:text-gray-600" />
-                </button>
-              </div>
+              {(() => {
+                const slug = client.magic_email_slug
+                const fullEmail = slug
+                  ? (slug.includes('@') ? slug : `${slug}@send.filio.uk`)
+                  : null
+                return (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-200 mb-3">
+                    <Mail size={13} className="text-gray-400 shrink-0" />
+                    <span className="text-xs text-gray-600 truncate flex-1">{fullEmail || 'Not configured'}</span>
+                    <button onClick={() => {
+                      if (fullEmail) {
+                        navigator.clipboard.writeText(fullEmail)
+                        toast.success('Copied!')
+                      }
+                    }}>
+                      <Copy size={13} className="text-gray-400 hover:text-gray-600" />
+                    </button>
+                  </div>
+                )
+              })()}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Sender verification</span>
-                <button onClick={() => toast.info('Feature coming soon')} className="text-emerald-600">
-                  <ToggleRight size={20} />
+                <button onClick={() => toast.info('Coming soon')} className="text-gray-300" title="Coming soon">
+                  <ToggleLeft size={20} />
                 </button>
               </div>
               <div className="flex items-center justify-between mt-2">
@@ -1080,7 +1199,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-gray-800 truncate max-w-[320px]">{u.filename}</p>
                         <p className="text-[10px] text-gray-400 truncate max-w-[320px]">
-                          {u.original_filename && u.original_filename !== u.filename ? `原始：${u.original_filename} · ` : ''}{formatFileSize(u.file_size)}
+                          {u.original_filename && u.original_filename !== u.filename ? `Original: ${u.original_filename} · ` : ''}{formatFileSize(u.file_size)}
                         </p>
                       </div>
                     </div>
@@ -1147,15 +1266,16 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                         <Copy size={14} />
                       </button>
                       {s === 'synced' && (u as any).xero_attachment_id && (
-                        <a
-                          href={`/api/uploads/${u.id}/download`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-500 hover:text-blue-700"
+                        <button
+                          onClick={() => handleDownloadUpload(u.id, u.original_filename || u.filename)}
+                          disabled={downloadingUploadId === u.id}
+                          className="text-xs text-blue-500 hover:text-blue-700 disabled:opacity-50"
                           title="Download from Xero"
                         >
-                          <Download size={14} />
-                        </a>
+                          {downloadingUploadId === u.id
+                            ? <RefreshCw size={14} className="animate-spin" />
+                            : <Download size={14} />}
+                        </button>
                       )}
                     </div>
                   </td>
@@ -1173,7 +1293,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
               <h3 className="text-sm font-bold text-gray-900">Reminder Settings</h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Auto reminders</span>
-                <button onClick={() => setAutoReminder(!autoReminder)}>
+                <button onClick={handleToggleAutoReminder}>
                   {autoReminder
                     ? <ToggleRight size={22} style={{ color: '#059669' }} />
                     : <ToggleLeft size={22} className="text-gray-300" />
@@ -1189,30 +1309,47 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
                 </div>
               ))}
             </div>
-            <button onClick={() => toast.success(`Reminder sent to ${client.name}`)} className="btn-primary">
-              <Send size={14} /> Send Reminder Now
+            <button
+              onClick={() => handleSendReminder()}
+              disabled={sendingReminderFor !== null}
+              className="btn-primary disabled:opacity-50"
+            >
+              {sendingReminderFor === 'general' ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+              {sendingReminderFor === 'general' ? 'Sending...' : 'Send Reminder Now'}
             </button>
           </div>
 
           <div className="filio-card p-5">
             <h3 className="text-sm font-bold text-gray-900 mb-4">Reminder History</h3>
-            <div className="space-y-3">
-              {[
-                { date: '25 Mar 2026', type: 'Auto · 7 days before', status: 'Delivered', statusColor: '#059669' },
-                { date: '18 Mar 2026', type: 'Auto · 14 days before', status: 'Delivered', statusColor: '#059669' },
-                { date: '01 Mar 2026', type: 'Manual', status: 'Delivered', statusColor: '#059669' },
-                { date: '01 Feb 2026', type: 'Auto · 30 days before', status: 'Failed', statusColor: '#DC2626' },
-              ].map((r, i) => (
-                <div key={i} className="flex items-center gap-4 py-2.5 border-b border-gray-50 last:border-0">
-                  <Bell size={14} className="text-gray-300 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-gray-700">{r.type}</p>
-                    <p className="text-[10px] text-gray-400">{r.date}</p>
-                  </div>
-                  <span className="text-xs font-semibold" style={{ color: r.statusColor }}>{r.status}</span>
+            {auditLoading ? (
+              <p className="text-xs text-gray-400">Loading...</p>
+            ) : (() => {
+              const reminderLogs = auditLogs.filter(l =>
+                l.action === 'reminder_sent' || l.action === 'magic_link_sent'
+              )
+              if (reminderLogs.length === 0) {
+                return <p className="text-xs text-gray-400">No reminders sent yet.</p>
+              }
+              return (
+                <div className="space-y-3">
+                  {reminderLogs.map((log) => (
+                    <div key={log.id} className="flex items-center gap-4 py-2.5 border-b border-gray-50 last:border-0">
+                      <Bell size={14} className="text-gray-300 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-700">
+                          {log.action === 'magic_link_sent' ? 'Magic link' : 'Reminder'}
+                          {(log.metadata as any)?.auto ? ' · Auto' : ' · Manual'}
+                        </p>
+                        <p className="text-[10px] text-gray-400">
+                          {new Date(log.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-600">Sent</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )
+            })()}
           </div>
         </div>
       )}
@@ -1303,7 +1440,7 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
             <button onClick={handleSaveSettings} disabled={saving} className="btn-primary disabled:opacity-50">
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
-            <button onClick={() => toast.info('Reset to global defaults')} className="btn-secondary">Reset to Defaults</button>
+            <button onClick={handleResetSettings} className="btn-secondary">Reset to Saved</button>
           </div>
         </div>
       )}
@@ -1319,6 +1456,14 @@ export function ClientDetailV3({ client }: ClientDetailV3Props) {
           <div className="divide-y divide-gray-50">
             {auditLoading ? (
               <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading…</div>
+            ) : auditError ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <AlertCircle size={24} className="text-red-300" />
+                <p className="text-sm text-red-500">Failed to load audit log</p>
+                <button onClick={loadAuditLogs} className="text-xs text-emerald-600 hover:underline">
+                  Try again
+                </button>
+              </div>
             ) : auditLogs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
                 <Shield size={24} className="text-gray-200" />

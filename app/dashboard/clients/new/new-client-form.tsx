@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { TRIAL_EXPIRED_ERROR, trialExpiredMessage } from '@/lib/constants/trial'
 
 type Mode = 'choose' | 'xero' | 'manual'
 
@@ -73,6 +74,8 @@ function XeroImportMode({ onBack }: { onBack: () => void }) {
         toast.success(`${data.imported} contact${data.imported !== 1 ? 's' : ''} imported successfully`)
         router.push('/dashboard/clients')
         router.refresh()
+      } else if (data.error === TRIAL_EXPIRED_ERROR) {
+        toast.error(trialExpiredMessage('import clients'))
       } else {
         toast.error(data.error || 'Import failed')
       }
@@ -188,6 +191,7 @@ function XeroImportMode({ onBack }: { onBack: () => void }) {
 function ManualAddMode({ onBack }: { onBack: () => void }) {
   const router = useRouter()
   const [step, setStep] = useState<1 | 2>(1)
+  const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({
     name: '', email: '', company: '',
     vatGroup: 'A', fyeMonth: 'March', fyeDay: '31',
@@ -197,11 +201,32 @@ function ManualAddMode({ onBack }: { onBack: () => void }) {
   const update = (k: keyof typeof form, v: string | boolean) =>
     setForm(prev => ({ ...prev, [k]: v }))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (step === 1) { setStep(2); return; }
-    toast.success(`Client "${form.name}" created successfully`)
-    setTimeout(() => router.push('/dashboard/clients'), 1000)
+
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, email: form.email }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(`Client "${form.name}" created successfully`)
+        router.push('/dashboard/clients')
+        router.refresh()
+      } else if (data.error === TRIAL_EXPIRED_ERROR) {
+        toast.error(trialExpiredMessage('add clients'))
+      } else {
+        toast.error(data.error || 'Failed to create client')
+      }
+    } catch {
+      toast.error('Failed to create client')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -342,11 +367,11 @@ function ManualAddMode({ onBack }: { onBack: () => void }) {
               Back
             </button>
           )}
-          <button type="submit" className="btn-primary flex-1 justify-center">
-            {step === 1 ? 'Next: Deadlines' : (
-              <>
-                <CheckCircle2 size={14} /> Create Client
-              </>
+          <button type="submit" disabled={submitting} className="btn-primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+            {step === 1 ? 'Next: Deadlines' : submitting ? (
+              <><RefreshCw size={14} className="animate-spin" /> Creating...</>
+            ) : (
+              <><CheckCircle2 size={14} /> Create Client</>
             )}
           </button>
         </div>

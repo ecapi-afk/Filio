@@ -1,10 +1,15 @@
 'use server'
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { Database } from './types'
 
-export async function createClient() {
+// @supabase/ssr@0.5.2 compiled types import from a path that no longer exists
+// in @supabase/supabase-js@2.103.0 (dist/module/lib/types), causing Schema to
+// resolve as never. We cast to SupabaseClient<Database> so TypeScript correctly
+// infers the schema from our Database type.
+export async function createClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
@@ -31,5 +36,5 @@ export async function createClient() {
         },
       },
     }
-  )
+  ) as unknown as SupabaseClient<Database>
 }

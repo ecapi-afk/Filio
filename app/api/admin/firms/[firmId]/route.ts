@@ -62,7 +62,7 @@ export async function GET(
   // Subscription — separate query
   const { data: subData } = await admin
     .from('subscriptions')
-    .select('plan, status, client_limit, current_period_end, stripe_subscription_id, stripe_customer_id')
+    .select('plan, status, client_limit, created_at, current_period_start, current_period_end, stripe_subscription_id, stripe_customer_id')
     .eq('firm_id', firmId)
     .limit(1)
     .single()
@@ -126,6 +126,8 @@ export async function GET(
             plan: sub.plan,
             status: sub.status,
             clientLimit: sub.client_limit,
+            subscribedAt: sub.created_at,
+            currentPeriodStart: sub.current_period_start,
             currentPeriodEnd: sub.current_period_end,
             stripeSubscriptionId: sub.stripe_subscription_id,
             stripeCustomerId: sub.stripe_customer_id,

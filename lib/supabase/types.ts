@@ -24,9 +24,15 @@ export type Database = {
           xero_last_sync_at: string | null
           xero_tokens_encrypted: string | null
           xero_upload_mode: string
-          notification_daily_summary: boolean
-          notification_sync_failure: boolean
-          notification_client_overdue: boolean
+          notify_daily_digest: boolean
+          notify_sync_failure: boolean
+          notify_client_overdue: boolean
+          notify_quota_warning: boolean
+          notify_auto_dormant: boolean
+          notify_dormant_reminder: boolean
+          notify_upload_attempt: boolean
+          notify_weekly_report: boolean
+          portal_welcome_message: string | null
           created_at: string
           xero_refresh_token_expires_at: string | null
           reply_to_email: string | null
@@ -35,6 +41,9 @@ export type Database = {
           default_client_language: string | null
           default_backend_language: string | null
           timezone: string
+          suspended_at: string | null
+          admin_notes: string | null
+          monthly_uploads_cache: Json | null
         }
         Insert: {
           id?: string
@@ -48,18 +57,26 @@ export type Database = {
           xero_last_sync_at?: string | null
           xero_tokens_encrypted?: string | null
           xero_upload_mode?: string
-          notification_daily_summary?: boolean
-          notification_sync_failure?: boolean
-          notification_client_overdue?: boolean
+          notify_daily_digest?: boolean
+          notify_sync_failure?: boolean
+          notify_client_overdue?: boolean
+          notify_quota_warning?: boolean
+          notify_auto_dormant?: boolean
+          notify_dormant_reminder?: boolean
+          notify_upload_attempt?: boolean
+          notify_weekly_report?: boolean
+          portal_welcome_message?: string | null
           created_at?: string
           xero_refresh_token_expires_at?: string | null
           reply_to_email?: string | null
           default_reminder_days?: number[] | null
           default_magic_email_sender_verified_only?: boolean | null
-          monthly_uploads_cache?: any
+          monthly_uploads_cache?: Json | null
           default_client_language?: string | null
           default_backend_language?: string | null
           timezone?: string
+          suspended_at?: string | null
+          admin_notes?: string | null
         }
         Update: {
           id?: string
@@ -73,18 +90,28 @@ export type Database = {
           xero_last_sync_at?: string | null
           xero_tokens_encrypted?: string | null
           xero_upload_mode?: string
-          notification_daily_summary?: boolean
-          notification_sync_failure?: boolean
-          notification_client_overdue?: boolean
+          notify_daily_digest?: boolean
+          notify_sync_failure?: boolean
+          notify_client_overdue?: boolean
+          notify_quota_warning?: boolean
+          notify_auto_dormant?: boolean
+          notify_dormant_reminder?: boolean
+          notify_upload_attempt?: boolean
+          notify_weekly_report?: boolean
+          portal_welcome_message?: string | null
           created_at?: string
           xero_refresh_token_expires_at?: string | null
           reply_to_email?: string | null
           default_reminder_days?: number[] | null
           default_magic_email_sender_verified_only?: boolean | null
+          monthly_uploads_cache?: Json | null
           default_client_language?: string | null
           default_backend_language?: string | null
           timezone?: string
+          suspended_at?: string | null
+          admin_notes?: string | null
         }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -95,6 +122,7 @@ export type Database = {
           avatar_url: string | null
           language: string
           updated_at: string
+          email: string | null
         }
         Insert: {
           id: string
@@ -104,6 +132,7 @@ export type Database = {
           avatar_url?: string | null
           language?: string
           updated_at?: string
+          email?: string | null
         }
         Update: {
           id?: string
@@ -113,7 +142,17 @@ export type Database = {
           avatar_url?: string | null
           language?: string
           updated_at?: string
+          email?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firms"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       clients: {
         Row: {
@@ -148,7 +187,6 @@ export type Database = {
           internal_notes: string | null
           checklist_override: string | null
           xero_phone: string | null
-          // Cached / denormalized columns (maintained at write time)
           client_number: number
           next_deadline_date: string | null
           next_deadline_type: string | null
@@ -220,12 +258,20 @@ export type Database = {
           checklist_override?: string | null
           current_period_completed?: boolean
           xero_phone?: string | null
-          // Cached fields
           next_deadline_date?: string | null
           next_deadline_type?: string | null
           uploads_count?: number
           computed_health_status?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "clients_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firms"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       uploads: {
         Row: {
@@ -238,6 +284,7 @@ export type Database = {
           storage_path: string | null
           xero_status: string
           xero_attachment_id: string | null
+          xero_upload_mode: string | null
           channel: string
           uploaded_at: string
         }
@@ -251,6 +298,7 @@ export type Database = {
           storage_path?: string | null
           xero_status?: string
           xero_attachment_id?: string | null
+          xero_upload_mode?: string | null
           channel?: string
           uploaded_at?: string
         }
@@ -264,9 +312,19 @@ export type Database = {
           storage_path?: string | null
           xero_status?: string
           xero_attachment_id?: string | null
+          xero_upload_mode?: string | null
           channel?: string
           uploaded_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "uploads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       subscriptions: {
         Row: {
@@ -277,6 +335,11 @@ export type Database = {
           client_limit: number
           created_at: string
           updated_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          stripe_subscription_id: string | null
+          stripe_customer_id: string | null
+          trial_ends_at: string | null
         }
         Insert: {
           id?: string
@@ -286,6 +349,11 @@ export type Database = {
           client_limit?: number
           created_at?: string
           updated_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          stripe_subscription_id?: string | null
+          stripe_customer_id?: string | null
+          trial_ends_at?: string | null
         }
         Update: {
           id?: string
@@ -295,7 +363,21 @@ export type Database = {
           client_limit?: number
           created_at?: string
           updated_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          stripe_subscription_id?: string | null
+          stripe_customer_id?: string | null
+          trial_ends_at?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firms"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       jobs: {
         Row: {
@@ -334,6 +416,22 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "uploads"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       reminder_jobs: {
         Row: {
@@ -372,6 +470,22 @@ export type Database = {
           cancel_reason?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_jobs_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       audit_logs: {
         Row: {
@@ -401,6 +515,22 @@ export type Database = {
           metadata?: Json | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       portal_tokens: {
         Row: {
@@ -424,6 +554,15 @@ export type Database = {
           expires_at?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "portal_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       download_jobs: {
         Row: {
@@ -459,6 +598,15 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "download_jobs_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firms"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       requests: {
         Row: {
@@ -491,13 +639,151 @@ export type Database = {
           status?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      magic_email_aliases: {
+        Row: {
+          id: string
+          client_id: string
+          alias: string
+          email_address: string | null
+          is_active: boolean
+          previous_alias: string | null
+          regenerated_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          alias: string
+          email_address?: string | null
+          is_active?: boolean
+          previous_alias?: string | null
+          regenerated_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          alias?: string
+          email_address?: string | null
+          is_active?: boolean
+          previous_alias?: string | null
+          regenerated_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "magic_email_aliases_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      short_links: {
+        Row: {
+          id: string
+          client_id: string
+          short_code: string
+          portal_token_id: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          short_code: string
+          portal_token_id?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          short_code?: string
+          portal_token_id?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "short_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      notifications: {
+        Row: {
+          id: string
+          firm_id: string
+          user_id: string | null
+          client_id: string | null
+          type: string
+          title: string
+          body: string | null
+          metadata: Json | null
+          read_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          firm_id: string
+          user_id?: string | null
+          client_id?: string | null
+          type: string
+          title: string
+          body?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          firm_id?: string
+          user_id?: string | null
+          client_id?: string | null
+          type?: string
+          title?: string
+          body?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firms"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      anonymize_client_audit_logs: {
+        Args: {
+          p_client_id: string
+          p_deleted_email_hash: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never
@@ -517,6 +803,8 @@ export type AuditLog = Database['public']['Tables']['audit_logs']['Row']
 export type PortalToken = Database['public']['Tables']['portal_tokens']['Row']
 export type DownloadJob = Database['public']['Tables']['download_jobs']['Row']
 export type Request = Database['public']['Tables']['requests']['Row']
+export type MagicEmailAlias = Database['public']['Tables']['magic_email_aliases']['Row']
+export type ShortLink = Database['public']['Tables']['short_links']['Row']
 
 // Health status enum
 export type HealthStatus =

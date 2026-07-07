@@ -29,7 +29,7 @@ export async function GET() {
       name,
       management_status,
       last_upload,
-      next_deadline,
+      next_deadline_date,
       uploads(count)
     `)
     .eq('firm_id', firmId)
@@ -64,8 +64,8 @@ export async function GET() {
   })
 
   const upcomingDeadlines = activeClients.filter(c => {
-    if (!c.next_deadline) return false
-    const deadline = new Date(c.next_deadline.date)
+    if (!c.next_deadline_date) return false
+    const deadline = new Date(c.next_deadline_date)
     return deadline >= now && deadline <= thirtyDaysFromNow
   })
 
@@ -83,7 +83,7 @@ export async function GET() {
         management_status: c.management_status,
         last_upload: c.last_upload,
         total_uploads: c.uploads?.[0]?.count || 0,
-        next_deadline: c.next_deadline,
+        next_deadline: c.next_deadline_date,
       })),
     },
   })

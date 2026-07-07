@@ -16,6 +16,10 @@ export interface ClientListItem {
   created_at: string
   next_deadline?: { date: string; type: string }
   upload_progress?: { uploaded: number; required: number }
+  short_links?: Array<{ short_code: string; is_active: boolean }>
+  portal_token?: string | null
+  magic_email_slug?: string | null
+  client_number?: string | null
 }
 
 interface ClientsContextType {

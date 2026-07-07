@@ -278,7 +278,6 @@ export async function POST(request: NextRequest) {
     // Create notification for the firm
     await supabaseAdmin.from("notifications").insert({
       firm_id: client.firm_id,
-      user_id: null,
       type: "upload_received",
       title: "Upload received",
       body: `New file(s) received from ${client.name} via email`,

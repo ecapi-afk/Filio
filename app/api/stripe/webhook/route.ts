@@ -76,8 +76,9 @@ export async function POST(request: NextRequest) {
     plan: string,
     stripeSubscriptionId: string,
     stripeCustomerId: string,
-    currentPeriodEnd: number,
-    status: 'active' | 'canceled'
+    currentPeriodEnd: number | null | undefined,
+    status: 'active' | 'canceled',
+    currentPeriodStart?: number | null
   ) => {
     const clientLimit = PLAN_CLIENT_LIMITS[plan] ?? 20
 
@@ -88,7 +89,8 @@ export async function POST(request: NextRequest) {
       client_limit: clientLimit,
       stripe_subscription_id: stripeSubscriptionId,
       stripe_customer_id: stripeCustomerId,
-      current_period_end: new Date(currentPeriodEnd * 1000).toISOString(),
+      current_period_end: currentPeriodEnd ? new Date(currentPeriodEnd * 1000).toISOString() : null,
+      current_period_start: currentPeriodStart ? new Date(currentPeriodStart * 1000).toISOString() : null,
     }, { onConflict: 'firm_id' })
 
     if (error) throw new Error(`Failed to upsert subscription: ${error.message}`)
@@ -114,8 +116,9 @@ export async function POST(request: NextRequest) {
             plan,
             stripeSubscription.id,
             session.customer as string,
-            stripeSubscription.current_period_end,
-            'active'
+            (stripeSubscription as any).current_period_end as number | undefined,
+            'active',
+            (stripeSubscription as any).current_period_start as number | undefined,
           )
 
           await dormantExcessClients(firmId, clientLimit)
@@ -147,20 +150,27 @@ export async function POST(request: NextRequest) {
             `subscription.updated: price metadata missing 'plan' for sub ${sub.id}. ` +
             `Keeping existing plan '${subData.plan}', only refreshing current_period_end.`
           )
+          const periodEnd = (sub as any).current_period_end as number | undefined
+          const periodStart = (sub as any).current_period_start as number | undefined
           await supabaseAdmin
             .from('subscriptions')
-            .update({ current_period_end: new Date(sub.current_period_end * 1000).toISOString() })
+            .update({
+              current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+              current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
+            })
             .eq('stripe_subscription_id', sub.id)
           break
         }
 
+        const subCustomerId = typeof sub.customer === 'string' ? sub.customer : (sub.customer as Stripe.Customer).id
         const clientLimit = await syncSubscription(
           subData.firm_id,
           pricePlan,
           sub.id,
-          sub.customer as string,
-          sub.current_period_end,
-          sub.status === 'active' ? 'active' : 'canceled'
+          subCustomerId,
+          (sub as any).current_period_end as number | undefined,
+          sub.status === 'active' ? 'active' : 'canceled',
+          (sub as any).current_period_start as number | undefined,
         )
 
         await dormantExcessClients(subData.firm_id, clientLimit)
@@ -173,10 +183,11 @@ export async function POST(request: NextRequest) {
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription
+        const deletedCustomerId = typeof sub.customer === 'string' ? sub.customer : (sub.customer as Stripe.Customer).id
         const { data: subData } = await supabaseAdmin
           .from('subscriptions')
           .select('firm_id')
-          .eq('stripe_customer_id', sub.customer)
+          .eq('stripe_customer_id', deletedCustomerId)
           .single()
 
         if (subData?.firm_id) {

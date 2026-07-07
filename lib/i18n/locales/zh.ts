@@ -227,11 +227,9 @@ const zh: Record<string, string> = {
   "clientDetail.daysBefore.14": "截止日前 14 天",
   "clientDetail.daysBefore.30": "截止日前 30 天",
   "clientDetail.delivered": "已送达",
-  "clientDetail.delivered": "已送达",
   "clientDetail.lastReminder": "上次提醒",
   "clientDetail.xeroView": "在 Xero 中查看",
   "clientDetail.sendMagicLink": "发送 Magic Link",
-  "clientDetail.copyLink": "复制链接",
   "clientDetail.regenerateMagicLink": "重新生成 Magic Link",
   "clientDetail.regenerateLinkDesc": "新短链接，邮箱不变",
   "clientDetail.regenerateMagicEmail": "重新生成 Magic Email",
@@ -249,7 +247,6 @@ const zh: Record<string, string> = {
   "clientDetail.noMagicEmail": "尚未配置魔法邮件。",
   "clientDetail.generateCredentials": "生成魔法链接和邮件",
   "clientDetail.copied": "已复制！",
-  "clientDetail.copy": "复制",
 
   // Warning Banners
   "clientDetail.warnings.xeroNotFound": "该联系人的 Xero 记录可能已被删除。上传到 Xero 的文件将失败。",

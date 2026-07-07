@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getClients } from '@/lib/data/clients'
 import { createMagicCredentials } from '@/lib/magic/generator'
+import { isTrialExpired } from '@/lib/auth/trial'
 import type { HealthStatus, ManagementStatus } from '@/lib/supabase/types'
 
 // GET /api/clients - List clients for the current user
@@ -45,6 +46,10 @@ export async function POST(request: NextRequest) {
 
   if (!profile?.firm_id) {
     return NextResponse.json({ error: 'No firm associated' }, { status: 403 })
+  }
+
+  if (await isTrialExpired(supabase, profile.firm_id)) {
+    return NextResponse.json({ error: 'trial_expired' }, { status: 403 })
   }
 
   try {

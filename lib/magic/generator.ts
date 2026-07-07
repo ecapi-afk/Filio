@@ -47,14 +47,7 @@ async function shortCodeExists(shortCode: string): Promise<boolean> {
 
   if (linkData) return true
 
-  // Also check portal_tokens for legacy compatibility
-  const { data: tokenData } = await supabase
-    .from("portal_tokens")
-    .select("id")
-    .eq("short_code", shortCode)
-    .maybeSingle()
-
-  return !!tokenData
+  return false
 }
 
 /**
@@ -208,7 +201,6 @@ export async function createMagicCredentials(
       client_id: clientId,
       token: token,
       expires_at: expiresAt,
-      short_code: shortCode,
     })
     .select("id")
     .single()
@@ -296,7 +288,6 @@ export async function regenerateShortCode(
       client_id: clientId,
       token: token,
       expires_at: expiresAt,
-      short_code: newShortCode,
     })
     .select("id")
     .single()

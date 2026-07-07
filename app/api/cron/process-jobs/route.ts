@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       const { data: upload } = await supabase
         .from('uploads')
         .select('id, filename, original_filename, file_type, storage_path')
-        .eq('id', job.upload_id)
+        .eq('id', job.upload_id!)
         .single()
 
       if (!upload) {

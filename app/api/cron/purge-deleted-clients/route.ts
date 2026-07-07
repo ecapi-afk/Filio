@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createHash } from 'crypto'
 
 // GDPR: Purge clients that have been soft-deleted for 30+ days
@@ -11,13 +11,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = await createAdminClient()
 
   try {
     const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - 30) // 30 days ago
+    cutoffDate.setDate(cutoffDate.getDate() - 30)
 
-    // Get clients deleted before cutoff
     const { data: clientsToPurge } = await supabase
       .from('clients')
       .select('id, firm_id, email, portal_email')
@@ -31,50 +30,40 @@ export async function GET(request: NextRequest) {
     let purgedCount = 0
 
     for (const client of clientsToPurge) {
-      // Anonymize audit logs (SHA-256 hash of email for compliance)
       const emailHash = client.email
         ? createHash('sha256').update(client.email).digest('hex')
         : 'deleted_client'
 
-      await supabase.rpc('anonymize_client_audit_logs', {
-        p_client_id: client.id,
-        p_deleted_email_hash: emailHash,
-      }).catch(() => {
-        // RPC might not exist, fall back to direct update
-        supabase
+      try {
+        await supabase.rpc('anonymize_client_audit_logs', {
+          p_client_id: client.id,
+          p_deleted_email_hash: emailHash,
+        })
+      } catch {
+        await supabase
           .from('audit_logs')
           .update({
             client_id: null,
             metadata: { deleted_client_hash: emailHash },
           })
           .eq('client_id', client.id)
-      })
+      }
 
-      // Delete portal tokens
       await supabase
         .from('portal_tokens')
         .delete()
         .eq('client_id', client.id)
 
-      // Delete client settings
-      await supabase
-        .from('client_settings')
-        .delete()
-        .eq('client_id', client.id)
-
-      // Delete reminder jobs
       await supabase
         .from('reminder_jobs')
         .delete()
         .eq('client_id', client.id)
 
-      // Delete uploads (and associated files in storage would be handled separately)
       await supabase
         .from('uploads')
         .delete()
         .eq('client_id', client.id)
 
-      // Finally, hard delete the client
       await supabase
         .from('clients')
         .delete()
@@ -89,7 +78,6 @@ export async function GET(request: NextRequest) {
       purged_at: new Date().toISOString(),
     })
   } catch (err) {
-    console.error('Error in purge-deleted-clients:', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

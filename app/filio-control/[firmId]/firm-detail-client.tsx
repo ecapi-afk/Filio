@@ -20,6 +20,8 @@ interface FirmDetail {
     plan: string
     status: string
     clientLimit: number
+    subscribedAt: string | null
+    currentPeriodStart: string | null
     currentPeriodEnd: string | null
     stripeSubscriptionId: string | null
     stripeCustomerId: string | null
@@ -91,6 +93,7 @@ export default function FirmDetailClient({ firmId }: { firmId: string }) {
         setSubStatus(sub?.status ?? 'active')
         setSubLimit(sub?.clientLimit ?? 20)
         setSubPeriodEnd(sub?.currentPeriodEnd ? sub.currentPeriodEnd.slice(0, 10) : '')
+        // subscribedAt and currentPeriodStart are read-only display fields (set by Stripe webhook)
         // Pre-select the price matching the current plan
         const matchingPrice = (priceData.prices ?? []).find((p: StripePrice) => p.plan === sub?.plan)
         if (matchingPrice) setSelectedPriceId(matchingPrice.id)
@@ -269,6 +272,41 @@ export default function FirmDetailClient({ firmId }: { firmId: string }) {
             <h2 className="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2">
               <CreditCard size={15} className="text-gray-400" /> Subscription
             </h2>
+
+            {/* Read-only billing info */}
+            {firm.subscription && (
+              <div className="grid grid-cols-3 gap-3 mb-5 p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Paid Since</p>
+                  <p className="text-xs font-medium text-gray-700">
+                    {firm.subscription.subscribedAt
+                      ? new Date(firm.subscription.subscribedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Current Period</p>
+                  <p className="text-xs font-medium text-gray-700">
+                    {firm.subscription.currentPeriodStart && firm.subscription.currentPeriodEnd
+                      ? `${new Date(firm.subscription.currentPeriodStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → ${new Date(firm.subscription.currentPeriodEnd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                      : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Bills On</p>
+                  <p className="text-xs font-medium text-gray-700">
+                    {(() => {
+                      const anchor = firm.subscription?.currentPeriodStart ?? firm.subscription?.currentPeriodEnd
+                      if (!anchor) return '—'
+                      const day = new Date(anchor).getDate()
+                      const sfx = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'
+                      return `${day}${sfx} of each month`
+                    })()}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4 mb-5">
               <div>
                 <label className="text-xs text-gray-500 block mb-1.5">Plan</label>

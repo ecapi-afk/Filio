@@ -26,7 +26,7 @@ export async function POST(
 
   const { error: updateError } = await supabase
     .from('clients')
-    .update({ is_starred: newStarred } as Partial<Client>)
+    .update({ is_starred: newStarred })
     .eq('id', id)
 
   if (updateError) {

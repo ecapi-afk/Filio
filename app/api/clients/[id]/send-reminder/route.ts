@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendReminderEmail } from '@/lib/email/postmark'
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+import { getClientUploadLink } from '@/lib/magic/get-upload-link'
 
 // POST /api/clients/[id]/send-reminder
 export async function POST(
@@ -41,7 +40,7 @@ export async function POST(
         name,
         email,
         portal_email,
-        portal_token,
+        management_status,
         firms (
           name
         )
@@ -54,10 +53,12 @@ export async function POST(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
+    if ((client as any).management_status !== 'active') {
+      return NextResponse.json({ error: 'Client is not active' }, { status: 403 })
+    }
+
     const firmName = (client.firms as any)?.name || 'Your Accountant'
-    const uploadLink = client.portal_token
-      ? `${APP_URL}/portal/${client.portal_token}`
-      : `${APP_URL}/portal`
+    const uploadLink = await getClientUploadLink(supabase, id)
     const recipientEmail = client.portal_email || client.email
 
     if (recipientEmail) {

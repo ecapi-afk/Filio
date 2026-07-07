@@ -38,6 +38,7 @@ export async function POST(
         name,
         email,
         portal_email,
+        management_status,
         firms (
           name
         )
@@ -48,6 +49,10 @@ export async function POST(
 
     if (clientError || !client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    }
+
+    if ((client as any).management_status !== 'active') {
+      return NextResponse.json({ error: 'Client is not active' }, { status: 403 })
     }
 
     const recipientEmail = (client as any).portal_email || (client as any).email

@@ -1,8 +1,5 @@
 import { getClientById, getClientByNumber } from '@/lib/data/clients'
-import { ClientDetailClient } from './client-detail-client'
 import { ClientDetailV3 } from './client-detail-v3'
-
-const DEMO_CLIENT_ID = 'fcc6d2f0-5c33-4f5b-986a-6ae3a81c8afe'
 
 export default async function ClientDetailPage({
   params,
@@ -28,10 +25,5 @@ export default async function ClientDetailPage({
     )
   }
 
-  // Canary deployment: render V3 for demo ID only
-  if (client.id === DEMO_CLIENT_ID) {
-    return <ClientDetailV3 client={client} />
-  }
-
-  return <ClientDetailClient client={client} />
+  return <ClientDetailV3 client={client} />
 }

@@ -222,7 +222,7 @@ export function PortalUploadClient({ portalToken }: PortalUploadClientProps) {
         formData.append('file', renamedFile);  // Upload with new filename
         formData.append('originalFilename', originalFileName);  // Keep original name
         formData.append('token', portalToken.token);
-        formData.append('clientId', client.id);
+        formData.append('clientId', client?.id ?? portalToken.client_id);
         formData.append('fileType', fileType);
 
         xhr.send(formData);

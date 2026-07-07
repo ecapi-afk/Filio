@@ -76,7 +76,7 @@ export async function POST(
       .single()
 
     if (firmDefaults) {
-      const updates: Record<string, unknown> = {}
+      const updates: { reminder_days_before?: number[] | null; magic_email_verified_only?: boolean } = {}
       if (existingClient.reminder_days_before === null && firmDefaults.default_reminder_days) {
         updates.reminder_days_before = firmDefaults.default_reminder_days
       }

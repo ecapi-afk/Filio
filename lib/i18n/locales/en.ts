@@ -227,11 +227,9 @@ const en: Record<string, string> = {
   "clientDetail.daysBefore.14": "14 days before deadline",
   "clientDetail.daysBefore.30": "30 days before deadline",
   "clientDetail.delivered": "Delivered",
-  "clientDetail.delivered": "Delivered",
   "clientDetail.lastReminder": "Last reminder",
   "clientDetail.xeroView": "View in Xero",
   "clientDetail.sendMagicLink": "Send Magic Link",
-  "clientDetail.copyLink": "Copy Link",
   "clientDetail.regenerateMagicLink": "Regenerate Magic Link",
   "clientDetail.regenerateLinkDesc": "New short URL, email unchanged",
   "clientDetail.regenerateMagicEmail": "Regenerate Magic Email",
@@ -249,7 +247,6 @@ const en: Record<string, string> = {
   "clientDetail.noMagicEmail": "No Magic Email configured yet.",
   "clientDetail.generateCredentials": "Generate Magic Link & Email",
   "clientDetail.copied": "Copied!",
-  "clientDetail.copy": "Copy",
 
   // Warning Banners
   "clientDetail.warnings.xeroNotFound": "This contact's Xero record may have been deleted. File uploads to Xero will fail.",

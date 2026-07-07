@@ -25,5 +25,10 @@ export default async function PortalUploadPage({
     redirect('/portal/expired');
   }
 
+  const client = portalToken.clients as any
+  if (client?.management_status !== 'active') {
+    redirect('/portal/paused');
+  }
+
   return <PortalUploadClient portalToken={portalToken} />;
 }

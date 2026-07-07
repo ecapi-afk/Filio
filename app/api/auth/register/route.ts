@@ -64,13 +64,15 @@ export async function POST(request: NextRequest) {
       // Not critical, continue
     }
 
-    // Create trial subscription using admin client
+    // Create trial subscription using admin client (30-day trial)
+    const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const { error: subError } = await (adminClient.from('subscriptions') as any)
       .insert({
         firm_id: firm.id,
         plan: 'trial',
         status: 'active',
         client_limit: 20,
+        trial_ends_at: trialEndsAt,
       })
 
     if (subError) {

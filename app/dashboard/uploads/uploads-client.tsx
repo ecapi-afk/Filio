@@ -29,6 +29,7 @@ interface UploadHistoryItem {
   clientName: string
   clientHealthStatus: string
   filename: string
+  original_filename?: string | null
   fileType: string | null
   fileSize: number | null
   xeroStatus: string
@@ -364,9 +365,9 @@ export function UploadsClient({
                             <p className="text-xs font-semibold text-foreground line-clamp-2">
                               {upload.filename}
                             </p>
-                            {upload.originalFilename && (
+                            {upload.original_filename && (
                               <p className="text-[10px] text-muted-foreground truncate">
-                                Original: {upload.originalFilename}
+                                Original: {upload.original_filename}
                               </p>
                             )}
                           </div>

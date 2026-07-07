@@ -197,7 +197,7 @@ export async function POST(
   if (client.next_deadline_date && client.next_deadline_type) {
     const { data: matchingRequest } = await adminClient
       .from('requests')
-      .select('id, status')
+      .select('id, status, title')
       .eq('client_id', id)
       .eq('deadline_date', client.next_deadline_date)
       .eq('title', client.next_deadline_type)
@@ -272,13 +272,15 @@ export async function POST(
     next_cycle_deadline: nextCycleDeadline,
   }
 
-  await supabase.from('audit_logs').insert({
-    firm_id: profile?.firm_id,
-    client_id: id,
-    action,
-    metadata,
-    created_by: user.id,
-  })
+  if (profile?.firm_id) {
+    await supabase.from('audit_logs').insert({
+      firm_id: profile.firm_id,
+      client_id: id,
+      action,
+      metadata,
+      actor: user.id,
+    })
+  }
 
   // Get updated client data after refresh
   const { data: updatedClient } = await supabase

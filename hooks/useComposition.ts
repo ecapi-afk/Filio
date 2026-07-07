@@ -1,26 +1,39 @@
-// hooks/useComposition.ts
-// Placeholder hook for composition input handling
+import { useState, useRef } from 'react'
+import type React from 'react'
 
-import { useState, useEffect } from 'react'
+type CompositionOptions<T extends HTMLElement> = {
+  onCompositionStart?: (e: React.CompositionEvent<T>) => void
+  onCompositionEnd?: (e: React.CompositionEvent<T>) => void
+  onKeyDown?: (e: React.KeyboardEvent<T>) => void
+}
 
-export function useComposition<T extends HTMLElement>(options?: {
-  onCompositionStart?: () => void
-  onCompositionEnd?: () => void
-}) {
+type CompositionResult<T extends HTMLElement> = {
+  isComposing: boolean
+  ref: React.RefObject<T>
+  onCompositionStart: (e: React.CompositionEvent<T>) => void
+  onCompositionEnd: (e: React.CompositionEvent<T>) => void
+  onKeyDown: (e: React.KeyboardEvent<T>) => void
+}
+
+export function useComposition<T extends HTMLElement>(
+  options?: CompositionOptions<T>
+): CompositionResult<T> {
   const [isComposing, setIsComposing] = useState(false)
+  const ref = useRef<T>(null) as React.RefObject<T>
 
-  useEffect(() => {
-    const handleCompositionStart = () => setIsComposing(true)
-    const handleCompositionEnd = () => setIsComposing(false)
+  const onCompositionStart = (e: React.CompositionEvent<T>) => {
+    setIsComposing(true)
+    options?.onCompositionStart?.(e)
+  }
 
-    document.addEventListener('compositionstart', handleCompositionStart)
-    document.addEventListener('compositionend', handleCompositionEnd)
+  const onCompositionEnd = (e: React.CompositionEvent<T>) => {
+    setIsComposing(false)
+    options?.onCompositionEnd?.(e)
+  }
 
-    return () => {
-      document.removeEventListener('compositionstart', handleCompositionStart)
-      document.removeEventListener('compositionend', handleCompositionEnd)
-    }
-  }, [])
+  const onKeyDown = (e: React.KeyboardEvent<T>) => {
+    options?.onKeyDown?.(e)
+  }
 
-  return { isComposing, ref: { current: null } as React.RefObject<T> }
+  return { isComposing, ref, onCompositionStart, onCompositionEnd, onKeyDown }
 }

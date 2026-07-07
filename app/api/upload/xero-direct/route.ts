@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // 2. Get client and firm
     const { data: client } = await supabase
       .from('clients')
-      .select('id, firm_id, name, xero_contact_id, firm:firm_id(xero_upload_mode)')
+      .select('id, firm_id, name, management_status, xero_contact_id, firm:firm_id(xero_upload_mode)')
       .eq('id', clientId)
       .single()
 
@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
 
     if (!clientData) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    }
+
+    if (clientData.management_status !== 'active') {
+      return NextResponse.json({ error: 'Client portal is not active' }, { status: 403 })
     }
 
     // Determine upload mode
@@ -123,7 +127,6 @@ export async function POST(request: NextRequest) {
         channel: 'portal',
         xero_status: 'synced',
         xero_attachment_id: xeroRes.fileId,
-        xero_upload_mode: actualMode
       })
       .select()
       .single()

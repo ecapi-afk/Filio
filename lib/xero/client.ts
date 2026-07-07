@@ -108,8 +108,6 @@ export async function ensureFreshAccessToken(firmId: string): Promise<XeroTokens
     return null
   }
 
-  console.log('ensureFreshAccessToken: Token expires at:', tokens.expiresAt, 'needsRefresh:', needsRefresh(tokens.expiresAt))
-
   // Check if we need to refresh
   if (!needsRefresh(tokens.expiresAt)) {
     return tokens
@@ -117,7 +115,6 @@ export async function ensureFreshAccessToken(firmId: string): Promise<XeroTokens
 
   // Refresh the token
   try {
-    console.log('Refreshing Xero token...')
     const response = await fetch('https://identity.xero.com/connect/token', {
       method: 'POST',
       headers: {
@@ -139,7 +136,6 @@ export async function ensureFreshAccessToken(firmId: string): Promise<XeroTokens
     }
 
     const data = await response.json()
-    console.log('Token refresh successful')
 
     const newTokens: XeroTokens = {
       accessToken: data.access_token,
@@ -174,8 +170,6 @@ export async function xeroRequest<T>(
   const baseUrl = 'https://api.xero.com/api.xro/2.0'
   const url = `${baseUrl}${path}`
 
-  console.log('xeroRequest:', path, '| fullUrl:', url, '| tenantId:', tokens.tenantId)
-
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -186,8 +180,6 @@ export async function xeroRequest<T>(
       ...options.headers,
     },
   })
-
-  console.log('xeroRequest response status:', response.status, '| content-type:', response.headers.get('content-type'))
 
   if (!response.ok) {
     const error = await response.text()
@@ -375,7 +367,7 @@ export async function uploadToXeroInbox(
     
     // We construct a multipart/form-data payload. Xero expects the form field name to be the filename.
     const formData = new FormData()
-    formData.append(fileName, new Blob([fileBuffer], { type: mimeType }), fileName)
+    formData.append(fileName, new Blob([fileBuffer as BlobPart], { type: mimeType }), fileName)
 
     const uploadRes = await fetch(url, {
       method: 'POST',
@@ -426,7 +418,7 @@ export async function uploadToXeroContactAttachment(
         'Content-Type': mimeType,
         'Accept': 'application/json'
       },
-      body: fileBuffer
+      body: fileBuffer as BodyInit
     })
 
     if (!uploadRes.ok) {

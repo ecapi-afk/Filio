@@ -50,16 +50,18 @@ export async function DELETE() {
 
     const clientIds = clients?.map(c => c.id) || []
 
-    // Step 3: Delete reminder_jobs (has both firm_id and client_id FKs)
-    await adminClient
-      .from('reminder_jobs')
-      .delete()
-      .eq('firm_id', firmId)
-
-    // Step 4: Delete magic_email_tokens (client_id FK)
+    // Step 3: Delete reminder_jobs (uses client_id FK)
     if (clientIds.length > 0) {
       await adminClient
-        .from('magic_email_tokens')
+        .from('reminder_jobs')
+        .delete()
+        .in('client_id', clientIds)
+    }
+
+    // Step 4: Delete magic_email_aliases (client_id FK)
+    if (clientIds.length > 0) {
+      await adminClient
+        .from('magic_email_aliases')
         .delete()
         .in('client_id', clientIds)
     }

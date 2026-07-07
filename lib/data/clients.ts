@@ -419,6 +419,16 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  // Resolve the user's firm_id first — used as an explicit ownership check
+  // in addition to RLS, so a misconfigured policy can't leak cross-firm data.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('firm_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.firm_id) return null
+
   const { data, error } = await supabase
     .from('clients')
     .select(`
@@ -427,6 +437,7 @@ export async function getClientById(id: string): Promise<ClientWithRelations | n
       short_links(short_code, is_active)
     `)
     .eq('id', id)
+    .eq('firm_id', profile.firm_id)
     .single()
 
   if (error) {

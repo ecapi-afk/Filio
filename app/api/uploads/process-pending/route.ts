@@ -106,6 +106,11 @@ export async function POST() {
       .eq('id', job.id)
 
     // Get upload record
+    if (!job.upload_id) {
+      await adminClient.from('jobs').update({ status: 'failed', error: 'No upload_id' }).eq('id', job.id)
+      failedCount++
+      continue
+    }
     const { data: upload } = await adminClient
       .from('uploads')
       .select('id, filename, original_filename, file_type, storage_path')

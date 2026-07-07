@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { syncUploadToXero } from '@/lib/xero/sync-upload'
 import { sendUploadFailedEmail } from '@/lib/email/postmark'
+import { isTrialExpired } from '@/lib/auth/trial'
 
 // POST /api/upload/confirm
 export async function POST(request: NextRequest) {
@@ -20,13 +21,18 @@ export async function POST(request: NextRequest) {
       // Verify portal token
       const { data: portalToken } = await supabase
         .from('portal_tokens')
-        .select('*')
+        .select('*, clients(management_status)')
         .eq('token', token)
         .eq('client_id', clientId)
         .single()
 
       if (!portalToken) {
         return NextResponse.json({ error: 'Invalid token' }, { status: 403 })
+      }
+
+      const clientStatus = (portalToken.clients as any)?.management_status
+      if (clientStatus !== 'active') {
+        return NextResponse.json({ error: 'Client portal is not active' }, { status: 403 })
       }
     } else {
       // Verify user
@@ -44,6 +50,10 @@ export async function POST(request: NextRequest) {
 
       if (!profile?.firm_id) {
         return NextResponse.json({ error: 'No firm associated' }, { status: 403 })
+      }
+
+      if (await isTrialExpired(supabase, profile.firm_id)) {
+        return NextResponse.json({ error: 'trial_expired' }, { status: 403 })
       }
 
       // Verify client belongs to firm
@@ -142,13 +152,10 @@ export async function POST(request: NextRequest) {
       console.error('Failed to refresh cache:', e)
     }
 
-    // Fire-and-forget: purge expired portal tokens and OTPs on each successful upload
+    // Fire-and-forget: purge expired portal tokens on each successful upload
     if (token) {
       const adminForCleanup = await createAdminClient()
-      Promise.all([
-        adminForCleanup.from('portal_tokens').delete().lt('expires_at', new Date().toISOString()),
-        adminForCleanup.from('portal_otps').delete().or('used_at.not.is.null,expires_at.lt.' + new Date().toISOString()),
-      ]).catch(() => { /* non-critical */ })
+      void adminForCleanup.from('portal_tokens').delete().lt('expires_at', new Date().toISOString())
     }
 
     return NextResponse.json({

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { Database } from '@/lib/supabase/types'
+
+type ClientUpdate = Database['public']['Tables']['clients']['Update']
 
 // GET /api/clients/[id] - Get single client with relations
 export async function GET(
@@ -69,14 +73,24 @@ export async function PATCH(
   try {
     const body = await request.json()
 
-    // Prevent changing certain fields
-    delete body.id
-    delete body.firm_id
-    delete body.created_at
+    const ALLOWED_FIELDS = [
+      'name', 'email', 'portal_email', 'phone', 'address', 'notes',
+      'auto_reminders_enabled', 'reminder_days_before',
+      'tax_year_end', 'company_number', 'vat_number',
+      'xero_contact_id', 'xero_linked_contact_id',
+    ] as const
+
+    const patch = Object.fromEntries(
+      Object.entries(body).filter(([k]) => (ALLOWED_FIELDS as readonly string[]).includes(k))
+    ) as ClientUpdate
+
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
 
     const { data, error } = await supabase
       .from('clients')
-      .update(body)
+      .update(patch)
       .eq('id', id)
       .eq('firm_id', profile.firm_id)
       .select()
@@ -93,7 +107,7 @@ export async function PATCH(
       client_id: id,
       actor: user.id,
       action: 'client_updated',
-      metadata: { changes: Object.keys(body) },
+      metadata: { changes: Object.keys(patch) },
     })
 
     return NextResponse.json({ data })
@@ -138,6 +152,17 @@ export async function DELETE(
   if (error) {
     console.error('Error deleting client:', error)
     return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 })
+  }
+
+  // Cancel all pending reminder jobs — deleted clients must not receive reminders
+  const adminClient = await createAdminClient()
+  const { error: cancelError } = await adminClient
+    .from('reminder_jobs')
+    .update({ status: 'cancelled', cancel_reason: 'Client deleted' })
+    .eq('client_id', id)
+    .eq('status', 'scheduled')
+  if (cancelError) {
+    console.error('delete client: failed to cancel reminder jobs:', cancelError)
   }
 
   // Audit log

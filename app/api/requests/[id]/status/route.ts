@@ -176,11 +176,11 @@ export async function PATCH(
   // If marking as complete, ensure future quarters exist
   if (status === 'Complete') {
     // Ensure VAT Return quarters always have 4 ahead
-    await ensureFutureQuartersExist(adminClient, requestData.client_id, vatQuarterGroup, clientData?.financial_year_end)
+    await ensureFutureQuartersExist(adminClient, requestData.client_id, vatQuarterGroup, clientData?.financial_year_end ?? null)
 
     // Ensure next year's Annual Accounts exists
     if (requestData.title.includes('Annual')) {
-      await ensureNextAnnualAccountsExist(adminClient, requestData.client_id, clientData?.financial_year_end)
+      await ensureNextAnnualAccountsExist(adminClient, requestData.client_id, clientData?.financial_year_end ?? null)
     }
 
     // Get the next deadline for response
