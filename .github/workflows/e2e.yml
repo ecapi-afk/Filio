@@ -119,7 +119,13 @@ jobs:
     name: E2E ${{ matrix.suite }}
     runs-on: ubuntu-latest
     needs: build
-    if: github.event.inputs.test_suite == 'full' || github.event.inputs.test_suite == matrix.suite || (github.event.inputs.test_suite == '' && matrix.suite != 'dashboard')
+    # No job-level `if` here: the `matrix` context does not exist yet at job-if
+    # evaluation time (it's only resolved per expanded step), so referencing
+    # matrix.suite here made GitHub fail to parse the whole workflow file
+    # ("Unrecognized named-value: 'matrix'"), which meant EVERY run of this
+    # workflow showed "No jobs were run" / failure with zero jobs scheduled.
+    # The equivalent per-suite selection has been moved to the "Run tests"
+    # step below, where `matrix` is valid.
     strategy:
       fail-fast: false
       matrix:
@@ -156,6 +162,9 @@ jobs:
           path: .next/
 
       - name: Run ${{ matrix.suite }} tests
+        # Moved down from the job-level `if` (see comment on the job above) —
+        # `matrix` is only valid inside steps, not job-level conditions.
+        if: github.event.inputs.test_suite == 'full' || github.event.inputs.test_suite == matrix.suite || (github.event.inputs.test_suite == '' && matrix.suite != 'dashboard')
         run: |
           if [ "${{ matrix.suite }}" == "smoke" ]; then
             pnpm test:e2e:smoke
