@@ -111,6 +111,11 @@ jobs:
           name: build
           path: .next/
           retention-days: 1
+          # upload-artifact defaults to excluding dotfiles/dot-directories,
+          # but `.next` IS a dot-directory — without this flag it silently
+          # uploads 0 files (job still shows "success"), and every job that
+          # downloads this artifact then fails with "Artifact not found".
+          include-hidden-files: true
 
   # ============================================
   # Job 3: E2E Tests Matrix (parallel execution)
